@@ -1,119 +1,156 @@
-import type { DocGuideline } from '@/lib/types'
+import { CheckCircle2, XCircle, AlertTriangle, BookOpen } from 'lucide-react';
+import type { DocGuidelineFields } from '@/lib/types';
+
+// --- GuidelineOverview: applies to badges + last revision ---
+
+interface OverviewProps {
+  guideline?: DocGuidelineFields;
+}
+
+export function GuidelineOverview({ guideline }: OverviewProps) {
+  if (!guideline) return null;
+
+  return (
+    <div className="space-y-4">
+      {guideline.appliesTo && guideline.appliesTo.length > 0 && (
+        <div className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm dark:shadow-none space-y-3">
+          <h3 className="flex items-center gap-2 text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+            <BookOpen className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
+            Aplica-se a
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {guideline.appliesTo.map((item) => (
+              <span
+                key={item}
+                className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-600"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {guideline.lastRevision && (
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Ultima revisao: {guideline.lastRevision}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// --- GuidelineRules: rules with description, whenApplies, riskOfIgnoring, example ---
+
+interface RulesProps {
+  rules?: DocGuidelineFields['rules'];
+}
+
+export function GuidelineRules({ rules }: RulesProps) {
+  if (!rules || rules.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Regras</h3>
+      <div className="space-y-3">
+        {rules.map((rule) => (
+          <div
+            key={rule.id}
+            className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 shadow-sm dark:shadow-none space-y-2"
+          >
+            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              {rule.description}
+            </p>
+            {rule.whenApplies && (
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="font-semibold">Quando aplicar:</span> {rule.whenApplies}
+              </p>
+            )}
+            {rule.riskOfIgnoring && (
+              <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>{rule.riskOfIgnoring}</span>
+              </div>
+            )}
+            {rule.example && (
+              <pre className="text-xs bg-zinc-100 dark:bg-zinc-800 rounded-lg p-3 overflow-x-auto text-zinc-700 dark:text-zinc-300">
+                {rule.example}
+              </pre>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- GuidelineChecklist: checkmark items ---
+
+interface ChecklistProps {
+  checklist?: string[];
+}
+
+export function GuidelineChecklist({ checklist }: ChecklistProps) {
+  if (!checklist || checklist.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+        Checklist
+      </h3>
+      <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 shadow-sm dark:shadow-none space-y-2">
+        {checklist.map((item, i) => (
+          <div
+            key={i}
+            className="flex items-start gap-2.5 text-sm text-zinc-700 dark:text-zinc-300"
+          >
+            <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-500" />
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- GuidelineAntiPatterns: red alert box with X icons ---
+
+interface AntiPatternsProps {
+  antiPatterns?: string[];
+}
+
+export function GuidelineAntiPatterns({ antiPatterns }: AntiPatternsProps) {
+  if (!antiPatterns || antiPatterns.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
+        Anti-Patterns
+      </h3>
+      <div className="rounded-xl border-l-4 border-red-500 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/30 dark:to-orange-950/30 p-5 space-y-2.5">
+        {antiPatterns.map((item, i) => (
+          <div key={i} className="flex items-start gap-2.5">
+            <XCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-500" />
+            <span className="text-sm font-medium text-red-800 dark:text-red-300">{item}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// --- Wrapper: backward compatible ---
 
 interface DocGuidelineDetailProps {
-  doc: DocGuideline
+  guideline: DocGuidelineFields;
 }
 
-function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+export function DocGuidelineDetail({ guideline }: DocGuidelineDetailProps) {
   return (
-    <div className="mb-6">
-      <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--ldv-text)' }}>
-        {title}
-      </h4>
-      {children}
+    <div className="space-y-6">
+      <GuidelineOverview guideline={guideline} />
+      <GuidelineRules rules={guideline.rules} />
+      <GuidelineChecklist checklist={guideline.checklist} />
+      <GuidelineAntiPatterns antiPatterns={guideline.antiPatterns} />
     </div>
-  )
-}
-
-export function DocGuidelineDetail({ doc }: DocGuidelineDetailProps) {
-  const guideline = doc.guideline
-
-  if (!guideline) {
-    return (
-      <p className="text-sm italic" style={{ color: 'var(--ldv-text-secondary)' }}>
-        Nenhum detalhe de diretriz disponivel.
-      </p>
-    )
-  }
-
-  return (
-    <div className="space-y-2">
-      {guideline.appliesTo && (
-        <DetailSection title="Aplica-se a">
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--ldv-text)' }}>
-            {guideline.appliesTo}
-          </p>
-        </DetailSection>
-      )}
-
-      {guideline.rules && guideline.rules.length > 0 && (
-        <DetailSection title="Regras">
-          <div className="space-y-3">
-            {guideline.rules.map((rule, i) => (
-              <div
-                key={rule.id}
-                className="p-4 rounded-lg border"
-                style={{ borderColor: 'var(--ldv-border)', backgroundColor: 'var(--ldv-bg-secondary)' }}
-              >
-                <div className="flex items-start gap-3">
-                  <span
-                    className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0"
-                    style={{ backgroundColor: 'var(--ldv-accent)', color: '#ffffff' }}
-                  >
-                    {i + 1}
-                  </span>
-                  <div className="flex-1 space-y-2">
-                    <p className="text-sm font-medium" style={{ color: 'var(--ldv-text)' }}>
-                      {rule.description}
-                    </p>
-
-                    {rule.whenApplies && (
-                      <div className="text-xs" style={{ color: 'var(--ldv-text-secondary)' }}>
-                        <span className="font-medium">Quando se aplica:</span>{' '}
-                        {rule.whenApplies}
-                      </div>
-                    )}
-
-                    {rule.riskOfIgnoring && (
-                      <div className="text-xs text-amber-700 dark:text-amber-400">
-                        <span className="font-medium">Risco de ignorar:</span>{' '}
-                        {rule.riskOfIgnoring}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </DetailSection>
-      )}
-
-      {guideline.checklist && guideline.checklist.length > 0 && (
-        <DetailSection title="Checklist">
-          <ul className="space-y-2">
-            {guideline.checklist.map((item, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span
-                  className="inline-flex items-center justify-center w-5 h-5 rounded border shrink-0 mt-0.5"
-                  style={{ borderColor: 'var(--ldv-border)', backgroundColor: 'var(--ldv-bg)' }}
-                />
-                <span className="text-sm" style={{ color: 'var(--ldv-text)' }}>
-                  {item}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </DetailSection>
-      )}
-
-      {guideline.antiPatterns && guideline.antiPatterns.length > 0 && (
-        <DetailSection title="Anti-padroes">
-          <div className="space-y-2">
-            {guideline.antiPatterns.map((pattern, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-3 p-3 rounded-lg border border-amber-300 dark:border-amber-700"
-                style={{ backgroundColor: 'rgba(234, 179, 8, 0.08)' }}
-              >
-                <span className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 font-bold">!</span>
-                <p className="text-sm" style={{ color: 'var(--ldv-text)' }}>
-                  {pattern}
-                </p>
-              </div>
-            ))}
-          </div>
-        </DetailSection>
-      )}
-    </div>
-  )
+  );
 }

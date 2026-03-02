@@ -1,74 +1,88 @@
-import { useState, useMemo } from 'react'
-import { cn } from '@/lib/cn'
+import React, { Suspense } from 'react'
+import {
+  FileText,
+  Scale,
+  Wrench,
+  BarChart3,
+  GitBranch,
+  ClipboardList,
+  Code2,
+  ShieldAlert,
+} from 'lucide-react'
 import { useDocsStore } from '@/hooks/use-docs-store'
-import type { DocAdr, DocPrd, DocGuideline, DocTask } from '@/lib/types'
+import type {
+  Doc,
+  DocAdr,
+  DocGuideline,
+  DocPrd,
+  DocPlanning,
+  DocTask,
+  Catalogs,
+  DocsIndex,
+} from '@/lib/types'
 import { DocMetadataHeader } from './DocMetadataHeader'
 import { DocSectionRenderer } from './DocSectionRenderer'
-import { DocReferences } from './DocReferences'
 import { DocTableView } from './DocTableView'
+import { DocReferences } from './DocReferences'
 import { DocChangelog } from './DocChangelog'
-import { DocAdrDetail } from './DocAdrDetail'
-import { DocPrdDetail } from './DocPrdDetail'
-import { DocGuidelineDetail } from './DocGuidelineDetail'
-import { DocTaskDetail } from './DocTaskDetail'
-import { MermaidDiagram } from './MermaidDiagram'
+import { AdrContextDecision, AdrAnalysis, AdrImplementation } from './DocAdrDetail'
+import {
+  GuidelineOverview,
+  GuidelineRules,
+  GuidelineChecklist,
+  GuidelineAntiPatterns,
+} from './DocGuidelineDetail'
+import { PrdOverview, PrdRequirements, PrdTechnical, PrdMetrics } from './DocPrdDetail'
+import { PlanningOverview, PlanningRisks, PlanningTechnical } from './DocPlanningDetail'
+import { TaskOverview, TaskFixes, TaskTechnical } from './DocTaskDetail'
+import { DocTabs, type TabItem } from './DocTabs'
 
-type TabId = 'content' | 'details' | 'tables' | 'diagrams' | 'changelog'
+// Lazy load heavy diagram component - only loaded when user opens the Dados tab
+const LazyMermaidDiagram = React.lazy(() =>
+  import('./MermaidDiagram').then((m) => ({ default: m.MermaidDiagram }))
+)
 
-interface TabDef {
-  id: TabId
-  label: string
+function DiagramFallback() {
+  return (
+    <div className="h-48 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+  )
 }
+
+// --- Type guards ---
+
+function isAdr(doc: Doc): doc is DocAdr {
+  return doc.type === 'adr' && 'adr' in doc
+}
+
+function isGuideline(doc: Doc): doc is DocGuideline {
+  return doc.type === 'guideline' && 'guideline' in doc
+}
+
+function isPrd(doc: Doc): doc is DocPrd {
+  return doc.type === 'prd' && 'prd' in doc
+}
+
+function isPlanning(doc: Doc): doc is DocPlanning {
+  return doc.type === 'planning' && 'planning' in doc
+}
+
+function isTask(doc: Doc): doc is DocTask {
+  return doc.type === 'task' && ('fixes' in doc || 'context' in doc)
+}
+
+// --- Main component ---
 
 export function DocDetail() {
   const currentDoc = useDocsStore((s) => s.currentDoc)
   const catalogs = useDocsStore((s) => s.catalogs)
+  const index = useDocsStore((s) => s.index)
   const loading = useDocsStore((s) => s.loading)
-  const [activeTab, setActiveTab] = useState<TabId>('content')
-
-  const availableTabs = useMemo<TabDef[]>(() => {
-    if (!currentDoc) return []
-
-    const tabs: TabDef[] = [{ id: 'content', label: 'Conteudo' }]
-
-    const hasDetails =
-      (currentDoc.type === 'adr' && (currentDoc as DocAdr).adr) ||
-      (currentDoc.type === 'prd' && (currentDoc as DocPrd).prd) ||
-      (currentDoc.type === 'guideline' && (currentDoc as DocGuideline).guideline) ||
-      (currentDoc.type === 'task' && ((currentDoc as DocTask).context || (currentDoc as DocTask).fixes))
-
-    if (hasDetails) {
-      tabs.push({ id: 'details', label: 'Detalhes' })
-    }
-
-    if (currentDoc.tables && currentDoc.tables.length > 0) {
-      tabs.push({ id: 'tables', label: 'Tabelas' })
-    }
-
-    if (currentDoc.diagrams && currentDoc.diagrams.length > 0) {
-      tabs.push({ id: 'diagrams', label: 'Diagramas' })
-    }
-
-    if (currentDoc.changelog && currentDoc.changelog.length > 0) {
-      tabs.push({ id: 'changelog', label: 'Changelog' })
-    }
-
-    return tabs
-  }, [currentDoc])
-
-  const safeActiveTab = useMemo(() => {
-    if (availableTabs.find((t) => t.id === activeTab)) return activeTab
-    return availableTabs[0]?.id ?? 'content'
-  }, [activeTab, availableTabs])
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div
-          className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
-          style={{ borderColor: 'var(--ldv-accent)', borderTopColor: 'transparent' }}
-        />
-        <span className="ml-2 text-sm" style={{ color: 'var(--ldv-text-secondary)' }}>
+        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin border-blue-500" />
+        <span className="ml-2 text-sm text-zinc-500 dark:text-zinc-400">
           Carregando documento...
         </span>
       </div>
@@ -78,7 +92,7 @@ export function DocDetail() {
   if (!currentDoc) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-sm" style={{ color: 'var(--ldv-text-secondary)' }}>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
           Selecione um documento na barra lateral
         </p>
       </div>
@@ -86,84 +100,241 @@ export function DocDetail() {
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--ldv-bg)' }}>
-      <div className="px-6 pt-6 shrink-0">
-        <DocMetadataHeader doc={currentDoc} catalogs={catalogs} />
-      </div>
-
-      {availableTabs.length > 1 && (
-        <div
-          className="px-6 mt-4 shrink-0 flex gap-1 border-b"
-          style={{ borderColor: 'var(--ldv-border)' }}
-        >
-          {availableTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
-                safeActiveTab === tab.id
-                  ? 'border-current'
-                  : 'border-transparent'
-              )}
-              style={{
-                color:
-                  safeActiveTab === tab.id
-                    ? 'var(--ldv-accent)'
-                    : 'var(--ldv-text-secondary)',
-              }}
-              onMouseEnter={(e) => {
-                if (safeActiveTab !== tab.id) {
-                  e.currentTarget.style.color = 'var(--ldv-text)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (safeActiveTab !== tab.id) {
-                  e.currentTarget.style.color = 'var(--ldv-text-secondary)'
-                }
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
-
+    <div className="h-full flex flex-col overflow-hidden bg-white dark:bg-zinc-900">
       <div className="flex-1 overflow-y-auto ldv-scrollbar px-6 py-6">
-        {safeActiveTab === 'content' && (
-          <div>
-            <DocSectionRenderer sections={currentDoc.sections} />
-            {currentDoc.references && currentDoc.references.length > 0 && (
-              <DocReferences references={currentDoc.references} />
-            )}
-          </div>
-        )}
-
-        {safeActiveTab === 'details' && (
-          <div>
-            {currentDoc.type === 'adr' && <DocAdrDetail doc={currentDoc as DocAdr} />}
-            {currentDoc.type === 'prd' && <DocPrdDetail doc={currentDoc as DocPrd} />}
-            {currentDoc.type === 'guideline' && <DocGuidelineDetail doc={currentDoc as DocGuideline} />}
-            {currentDoc.type === 'task' && <DocTaskDetail doc={currentDoc as DocTask} />}
-          </div>
-        )}
-
-        {safeActiveTab === 'tables' && currentDoc.tables && (
-          <DocTableView tables={currentDoc.tables} />
-        )}
-
-        {safeActiveTab === 'diagrams' && currentDoc.diagrams && (
-          <div className="space-y-6">
-            {currentDoc.diagrams.map((diagram) => (
-              <MermaidDiagram key={diagram.id} diagram={diagram} />
-            ))}
-          </div>
-        )}
-
-        {safeActiveTab === 'changelog' && currentDoc.changelog && (
-          <DocChangelog changelog={currentDoc.changelog} />
-        )}
+        <div className="max-w-4xl pb-16">
+          <DocDetailContent doc={currentDoc} catalogs={catalogs} index={index} />
+        </div>
       </div>
     </div>
   )
+}
+
+// --- Content with multi-tab interface ---
+
+interface DocDetailContentProps {
+  doc: Doc
+  catalogs: Catalogs | null
+  index: DocsIndex | null
+}
+
+function DocDetailContent({ doc, catalogs, index }: DocDetailContentProps) {
+  // indexedDocIds will be used when DependencyGraph component is added
+  const _indexedDocIds = index ? new Set(index.documents.map((d) => d.id)) : new Set<string>()
+  void _indexedDocIds
+
+  const sections = Array.isArray(doc.sections) ? doc.sections : []
+  const tables = Array.isArray(doc.tables) ? doc.tables : []
+  const diagrams = Array.isArray(doc.diagrams) ? doc.diagrams : []
+  const references = Array.isArray(doc.references) ? doc.references : []
+  const changelog = Array.isArray(doc.changelog) ? doc.changelog : []
+
+  const hasSections = sections.length > 0
+  const hasTables = tables.length > 0
+  const hasDiagrams = diagrams.length > 0
+  const hasReferences = references.length > 0
+  const hasChangelog = changelog.length > 0
+
+  const adr = isAdr(doc) ? doc.adr : undefined
+  const guideline = isGuideline(doc) ? doc.guideline : undefined
+  const prd = isPrd(doc) ? doc.prd : undefined
+  const planning = isPlanning(doc) ? doc.planning : undefined
+  const task = isTask(doc) ? doc : undefined
+
+  // PRD-specific checks
+  const prdHasRequirements =
+    prd &&
+    ((prd.functionalRequirements?.length ?? 0) > 0 ||
+      (prd.nonFunctionalRequirements?.length ?? 0) > 0 ||
+      (prd.businessRules?.length ?? 0) > 0 ||
+      (prd.useCases?.length ?? 0) > 0)
+  const prdHasTechnical =
+    prd &&
+    ((prd.apiSpecification?.length ?? 0) > 0 ||
+      !!prd.dataModel ||
+      (prd.involvedFiles?.length ?? 0) > 0 ||
+      (prd.permissions?.length ?? 0) > 0)
+
+  // --- Build tabs dynamically based on document content ---
+
+  const allTabs: (TabItem | null)[] = [
+    // Tab: Resumo (always present)
+    {
+      id: 'resumo',
+      label: 'Resumo',
+      icon: <FileText className="h-4 w-4" />,
+      content: () => (
+        <div className="space-y-8">
+          <DocMetadataHeader
+            metadata={doc.metadata}
+            docId={doc.id}
+            docType={doc.type}
+            catalogs={catalogs}
+          />
+          {adr && <AdrContextDecision adr={adr} />}
+          {guideline && <GuidelineOverview guideline={guideline} />}
+          {prd && <PrdOverview prd={prd} />}
+          {prd?.metrics && prd.metrics.length > 0 && <PrdMetrics prd={prd} />}
+          {planning && <PlanningOverview planning={planning} />}
+          {task && <TaskOverview task={task} />}
+          {hasSections && (
+            <div className="space-y-8">
+              {sections.map((section, i) => (
+                <DocSectionRenderer
+                  key={section.id || `${doc.id}-section-${i}`}
+                  section={section}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
+
+    // Tab: Analise (ADR consequences/alternatives + Guideline rules)
+    adr || (guideline?.rules && guideline.rules.length > 0)
+      ? {
+          id: 'analise',
+          label: 'Analise',
+          icon: <Scale className="h-4 w-4" />,
+          content: () => (
+            <div className="space-y-8">
+              {adr && <AdrAnalysis adr={adr} />}
+              {guideline && <GuidelineRules rules={guideline.rules} />}
+            </div>
+          ),
+        }
+      : null,
+
+    // Tab: Riscos (Planning)
+    planning?.risks && planning.risks.length > 0
+      ? {
+          id: 'riscos',
+          label: 'Riscos',
+          icon: <ShieldAlert className="h-4 w-4" />,
+          badge: String(planning.risks.length),
+          content: () => <PlanningRisks risks={planning.risks} />,
+        }
+      : null,
+
+    // Tab: Tecnico (Planning - files + verify)
+    planning &&
+    ((planning.files?.length ?? 0) > 0 || (planning.verify?.length ?? 0) > 0)
+      ? {
+          id: 'tecnico-planning',
+          label: 'Tecnico',
+          icon: <Code2 className="h-4 w-4" />,
+          content: () => <PlanningTechnical planning={planning} />,
+        }
+      : null,
+
+    // Tab: Fixes (Task - detailed fix cards)
+    task?.fixes && task.fixes.length > 0
+      ? {
+          id: 'fixes',
+          label: 'Fixes',
+          icon: <Wrench className="h-4 w-4" />,
+          badge: String(task.fixes.length),
+          content: () => <TaskFixes fixes={task.fixes!} />,
+        }
+      : null,
+
+    // Tab: Tecnico (Task - files, verify, regression tests)
+    task &&
+    ((task.allFilesModified?.length ?? 0) > 0 ||
+      (task.verify?.length ?? 0) > 0 ||
+      !!task.regressionTests)
+      ? {
+          id: 'tecnico-task',
+          label: 'Tecnico',
+          icon: <Code2 className="h-4 w-4" />,
+          content: () => <TaskTechnical task={task} />,
+        }
+      : null,
+
+    // Tab: Requisitos (PRD - functional, non-functional, business rules, use cases)
+    prdHasRequirements
+      ? {
+          id: 'requisitos',
+          label: 'Requisitos',
+          icon: <ClipboardList className="h-4 w-4" />,
+          content: () => <PrdRequirements prd={prd} />,
+        }
+      : null,
+
+    // Tab: Tecnico (PRD - API spec, data model, files, permissions)
+    prdHasTechnical
+      ? {
+          id: 'tecnico',
+          label: 'Tecnico',
+          icon: <Code2 className="h-4 w-4" />,
+          content: () => <PrdTechnical prd={prd} />,
+        }
+      : null,
+
+    // Tab: Implementacao (ADR phases/criteria/agent rules + Guideline checklist/antiPatterns)
+    adr?.phases?.length ||
+    adr?.successCriteria?.length ||
+    adr?.agentRules?.length ||
+    guideline?.checklist?.length ||
+    guideline?.antiPatterns?.length
+      ? {
+          id: 'implementacao',
+          label: 'Implementacao',
+          icon: <Wrench className="h-4 w-4" />,
+          content: () => (
+            <div className="space-y-8">
+              {adr && <AdrImplementation adr={adr} />}
+              {guideline && (
+                <>
+                  <GuidelineChecklist checklist={guideline.checklist} />
+                  <GuidelineAntiPatterns antiPatterns={guideline.antiPatterns} />
+                </>
+              )}
+            </div>
+          ),
+        }
+      : null,
+
+    // Tab: Dados (Tables + Diagrams)
+    hasTables || hasDiagrams
+      ? {
+          id: 'dados',
+          label: 'Dados',
+          icon: <BarChart3 className="h-4 w-4" />,
+          badge: String(tables.length + diagrams.length),
+          content: () => (
+            <div className="space-y-6">
+              {hasTables && <DocTableView tables={tables} />}
+              {diagrams.map((diagram, diagramIndex) => (
+                <Suspense
+                  key={diagram.id || `${doc.id}-diagram-${diagramIndex}`}
+                  fallback={<DiagramFallback />}
+                >
+                  <LazyMermaidDiagram diagram={diagram} />
+                </Suspense>
+              ))}
+            </div>
+          ),
+        }
+      : null,
+
+    // Tab: Conexoes (References + Changelog)
+    {
+      id: 'conexoes',
+      label: 'Conexoes',
+      icon: <GitBranch className="h-4 w-4" />,
+      badge: hasReferences ? String(references.length) : undefined,
+      content: () => (
+        <div className="space-y-8">
+          {hasReferences && <DocReferences references={references} />}
+          {hasChangelog && <DocChangelog changelog={changelog} />}
+        </div>
+      ),
+    },
+  ]
+
+  const tabs = allTabs.filter((t): t is TabItem => t !== null)
+
+  return <DocTabs tabs={tabs} defaultTab="resumo" />
 }

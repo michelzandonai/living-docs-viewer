@@ -1,106 +1,205 @@
 import { create } from 'zustand'
+import { immer } from 'zustand/middleware/immer'
 import type { DocsIndex, DocsIndexEntry, Doc, Catalogs, DocType } from '@/lib/types'
 
 interface DocsState {
+  // API data
   apiUrl: string
   index: DocsIndex | null
   catalogs: Catalogs | null
   currentDoc: Doc | null
   currentDocId: string | null
-  searchQuery: string
-  typeFilter: DocType | null
   loading: boolean
   error: string | null
 
+  // UI state - search & filter
+  searchQuery: string
+  typeFilter: DocType | null
+
+  // UI state - tree navigation
+  expandedNodes: Record<string, boolean>
+
+  // UI state - theme
+  theme: 'light' | 'dark'
+
+  // Actions - API
   setApiUrl: (url: string) => void
+  loadIndex: () => Promise<void>
+  selectDoc: (docId: string) => Promise<void>
+
+  // Actions - search & filter
   setSearchQuery: (query: string) => void
   setTypeFilter: (type: DocType | null) => void
-  selectDoc: (docId: string) => Promise<void>
-  loadIndex: () => Promise<void>
 
+  // Actions - tree navigation
+  toggleNode: (nodeId: string) => void
+  expandAll: (nodeIds: string[]) => void
+  collapseAll: () => void
+
+  // Actions - theme
+  toggleTheme: () => void
+  setTheme: (theme: 'light' | 'dark') => void
+
+  // Derived
   filteredDocs: () => DocsIndexEntry[]
 }
 
-export const useDocsStore = create<DocsState>((set, get) => ({
-  apiUrl: '',
-  index: null,
-  catalogs: null,
-  currentDoc: null,
-  currentDocId: null,
-  searchQuery: '',
-  typeFilter: null,
-  loading: false,
-  error: null,
+import type { StoreApi, UseBoundStore } from 'zustand'
 
-  setApiUrl: (url) => set({ apiUrl: url }),
+export const useDocsStore: UseBoundStore<StoreApi<DocsState>> = create<DocsState>()(
+  immer((set, get) => ({
+    // API data
+    apiUrl: '',
+    index: null,
+    catalogs: null,
+    currentDoc: null,
+    currentDocId: null,
+    loading: false,
+    error: null,
 
-  setSearchQuery: (query) => set({ searchQuery: query }),
+    // UI state - search & filter
+    searchQuery: '',
+    typeFilter: null,
 
-  setTypeFilter: (type) => set({ typeFilter: type }),
+    // UI state - tree navigation
+    expandedNodes: {},
 
-  loadIndex: async () => {
-    const { apiUrl } = get()
-    set({ loading: true, error: null })
-    try {
-      const [indexRes, authorsRes, tagsRes, glossaryRes] = await Promise.all([
-        fetch(`${apiUrl}/docs-index.json`),
-        fetch(`${apiUrl}/_catalogs/authors.json`),
-        fetch(`${apiUrl}/_catalogs/tags.json`),
-        fetch(`${apiUrl}/_catalogs/glossary.json`),
-      ])
+    // UI state - theme
+    theme: 'light' as const,
 
-      if (!indexRes.ok) throw new Error(`Failed to load index: ${indexRes.status}`)
+    // Actions - API
+    setApiUrl: (url) =>
+      set((state) => {
+        state.apiUrl = url
+      }),
 
-      const index = await indexRes.json() as DocsIndex
-      const authors = authorsRes.ok ? await authorsRes.json() : {}
-      const tags = tagsRes.ok ? await tagsRes.json() : {}
-      const glossary = glossaryRes.ok ? await glossaryRes.json() : {}
+    loadIndex: async () => {
+      const { apiUrl } = get()
+      set((state) => {
+        state.loading = true
+        state.error = null
+      })
 
-      set({ index, catalogs: { authors, tags, glossary }, loading: false })
-    } catch (e) {
-      set({ error: (e as Error).message, loading: false })
-    }
-  },
+      try {
+        const [indexRes, authorsRes, tagsRes, glossaryRes] = await Promise.all([
+          fetch(`${apiUrl}/docs-index.json`),
+          fetch(`${apiUrl}/_catalogs/authors.json`),
+          fetch(`${apiUrl}/_catalogs/tags.json`),
+          fetch(`${apiUrl}/_catalogs/glossary.json`),
+        ])
 
-  selectDoc: async (docId) => {
-    const { apiUrl, index } = get()
-    if (!index) return
+        if (!indexRes.ok) throw new Error(`Falha ao carregar indice: ${indexRes.status}`)
 
-    const entry = index.documents.find((d) => d.id === docId)
-    if (!entry) return
+        const index = (await indexRes.json()) as DocsIndex
+        const authors = authorsRes.ok ? await authorsRes.json() : {}
+        const tags = tagsRes.ok ? await tagsRes.json() : {}
+        const glossary = glossaryRes.ok ? await glossaryRes.json() : {}
 
-    set({ loading: true, currentDocId: docId })
-    try {
-      const res = await fetch(`${apiUrl}/${entry.path}`)
-      if (!res.ok) throw new Error(`Failed to load doc: ${res.status}`)
-      const doc = await res.json() as Doc
-      set({ currentDoc: doc, loading: false })
-    } catch (e) {
-      set({ error: (e as Error).message, loading: false })
-    }
-  },
+        set((state) => {
+          state.index = index
+          state.catalogs = { authors, tags, glossary }
+          state.loading = false
+        })
+      } catch (e) {
+        set((state) => {
+          state.error = (e as Error).message
+          state.loading = false
+        })
+      }
+    },
 
-  filteredDocs: () => {
-    const { index, searchQuery, typeFilter } = get()
-    if (!index) return []
+    selectDoc: async (docId) => {
+      const { apiUrl, index } = get()
+      if (!index) return
 
-    let docs = index.documents
+      const entry = index.documents.find((d) => d.id === docId)
+      if (!entry) return
 
-    if (typeFilter) {
-      docs = docs.filter((d) => d.type === typeFilter)
-    }
+      set((state) => {
+        state.loading = true
+        state.currentDocId = docId
+      })
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      docs = docs.filter(
-        (d) =>
-          d.id.toLowerCase().includes(q) ||
-          d.title.toLowerCase().includes(q) ||
-          d.summary.toLowerCase().includes(q) ||
-          d.tagIds.some((t) => t.toLowerCase().includes(q))
-      )
-    }
+      try {
+        const res = await fetch(`${apiUrl}/${entry.path}`)
+        if (!res.ok) throw new Error(`Falha ao carregar documento: ${res.status}`)
+        const doc = (await res.json()) as Doc
 
-    return docs
-  },
-}))
+        set((state) => {
+          state.currentDoc = doc
+          state.loading = false
+        })
+      } catch (e) {
+        set((state) => {
+          state.error = (e as Error).message
+          state.loading = false
+        })
+      }
+    },
+
+    // Actions - search & filter
+    setSearchQuery: (query) =>
+      set((state) => {
+        state.searchQuery = query
+      }),
+
+    setTypeFilter: (type) =>
+      set((state) => {
+        state.typeFilter = type
+      }),
+
+    // Actions - tree navigation
+    toggleNode: (nodeId) =>
+      set((state) => {
+        state.expandedNodes[nodeId] = !state.expandedNodes[nodeId]
+      }),
+
+    expandAll: (nodeIds) =>
+      set((state) => {
+        for (const id of nodeIds) {
+          state.expandedNodes[id] = true
+        }
+      }),
+
+    collapseAll: () =>
+      set((state) => {
+        state.expandedNodes = {}
+      }),
+
+    // Actions - theme
+    toggleTheme: () =>
+      set((state) => {
+        state.theme = state.theme === 'light' ? 'dark' : 'light'
+      }),
+
+    setTheme: (theme) =>
+      set((state) => {
+        state.theme = theme
+      }),
+
+    // Derived
+    filteredDocs: () => {
+      const { index, searchQuery, typeFilter } = get()
+      if (!index) return []
+
+      let docs = index.documents
+
+      if (typeFilter) {
+        docs = docs.filter((d) => d.type === typeFilter)
+      }
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase()
+        docs = docs.filter(
+          (d) =>
+            d.id.toLowerCase().includes(q) ||
+            d.title.toLowerCase().includes(q) ||
+            d.summary.toLowerCase().includes(q) ||
+            d.tagIds.some((t) => t.toLowerCase().includes(q))
+        )
+      }
+
+      return docs
+    },
+  }))
+)

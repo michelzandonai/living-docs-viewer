@@ -1,27 +1,25 @@
-import type { DocTable } from '@/lib/types'
+import type { DocTable } from '@/lib/types';
 
 interface DocTableViewProps {
-  tables: DocTable[]
+  tables: DocTable[];
 }
 
 function TableBlock({ table }: { table: DocTable }) {
-  return (
-    <div className="mb-6">
-      {table.title && (
-        <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--ldv-text)' }}>
-          {table.title}
-        </h4>
-      )}
+  const columns = table.columns ?? table.headers ?? [];
 
-      <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--ldv-border)' }}>
+  return (
+    <div className="space-y-2">
+      {table.title && (
+        <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{table.title}</h4>
+      )}
+      <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden shadow-sm dark:shadow-none">
         <table className="w-full text-sm">
           <thead>
-            <tr style={{ backgroundColor: 'var(--ldv-bg-secondary)' }}>
-              {table.columns.map((col, i) => (
+            <tr className="bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-700">
+              {columns.map((col, i) => (
                 <th
                   key={i}
-                  className="px-4 py-2.5 text-left font-semibold whitespace-nowrap border-b"
-                  style={{ color: 'var(--ldv-text)', borderColor: 'var(--ldv-border)' }}
+                  className="font-semibold text-xs uppercase tracking-wider text-zinc-600 dark:text-zinc-400 px-4 py-3 text-left"
                 >
                   {col}
                 </th>
@@ -29,19 +27,20 @@ function TableBlock({ table }: { table: DocTable }) {
             </tr>
           </thead>
           <tbody>
-            {table.rows.map((row, rowIndex) => (
+            {table.rows.map((row, rowIdx) => (
               <tr
-                key={rowIndex}
-                className="transition-colors"
-                style={{
-                  backgroundColor: rowIndex % 2 === 0 ? 'var(--ldv-bg)' : 'var(--ldv-bg-secondary)',
-                }}
+                key={rowIdx}
+                className={[
+                  'transition-colors hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40',
+                  rowIdx % 2 === 1
+                    ? 'bg-zinc-50/40 dark:bg-zinc-800/20'
+                    : 'bg-white dark:bg-zinc-900',
+                ].join(' ')}
               >
-                {row.map((cell, cellIndex) => (
+                {row.map((cell, cellIdx) => (
                   <td
-                    key={cellIndex}
-                    className="px-4 py-2 border-b"
-                    style={{ color: 'var(--ldv-text)', borderColor: 'var(--ldv-border)' }}
+                    key={cellIdx}
+                    className="text-sm px-4 py-3 border-t border-zinc-100 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300"
                   >
                     {cell}
                   </td>
@@ -52,16 +51,16 @@ function TableBlock({ table }: { table: DocTable }) {
         </table>
       </div>
     </div>
-  )
+  );
 }
 
 export function DocTableView({ tables }: DocTableViewProps) {
   if (tables.length === 0) {
     return (
-      <p className="text-sm italic" style={{ color: 'var(--ldv-text-secondary)' }}>
+      <p className="text-sm italic text-zinc-500 dark:text-zinc-400">
         Nenhuma tabela disponivel.
       </p>
-    )
+    );
   }
 
   return (
@@ -70,5 +69,5 @@ export function DocTableView({ tables }: DocTableViewProps) {
         <TableBlock key={table.id} table={table} />
       ))}
     </div>
-  )
+  );
 }

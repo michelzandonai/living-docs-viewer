@@ -1,136 +1,413 @@
-import type { DocTask } from '@/lib/types'
+import {
+  CheckCircle2,
+  FileCode,
+  ListChecks,
+  Wrench,
+  Link2,
+  TestTube2,
+  Tag,
+} from 'lucide-react';
+import type { DocTask, DocTaskFix, DocTaskRegressionTests, DocTaskLinks } from '@/lib/types';
 
-interface DocTaskDetailProps {
-  doc: DocTask
-}
+const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
+  root_cause: {
+    label: 'Causa raiz',
+    color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  },
+  defensive: {
+    label: 'Defensivo',
+    color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  },
+  defense_in_depth: {
+    label: 'Defesa profundidade',
+    color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  },
+  api_mapping: {
+    label: 'Mapeamento API',
+    color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  },
+  ui: {
+    label: 'UI',
+    color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  },
+  bug_fix: {
+    label: 'Bug fix',
+    color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+  },
+};
 
-function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+// --- TaskOverview (Tab Resumo) ---
+
+export function TaskOverview({ task }: { task: DocTask }) {
+  const fixes = Array.isArray(task.fixes) ? task.fixes : [];
+  const context = task.context;
+  const total = fixes.length;
+
   return (
-    <div className="mb-6">
-      <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--ldv-text)' }}>
-        {title}
-      </h4>
-      {children}
-    </div>
-  )
-}
-
-export function DocTaskDetail({ doc }: DocTaskDetailProps) {
-  const hasContext = doc.context?.problem || doc.context?.rootCause
-  const hasFixes = doc.fixes && doc.fixes.length > 0
-  const hasVerify = doc.verify && doc.verify.length > 0
-
-  if (!hasContext && !hasFixes && !hasVerify) {
-    return (
-      <p className="text-sm italic" style={{ color: 'var(--ldv-text-secondary)' }}>
-        Nenhum detalhe de tarefa disponivel.
-      </p>
-    )
-  }
-
-  return (
-    <div className="space-y-2">
-      {hasContext && (
-        <DetailSection title="Contexto">
-          <div className="space-y-3">
-            {doc.context?.problem && (
-              <div
-                className="p-3 rounded-lg border"
-                style={{ borderColor: 'var(--ldv-border)', backgroundColor: 'var(--ldv-bg-secondary)' }}
-              >
-                <h5 className="text-xs font-medium mb-1" style={{ color: 'var(--ldv-text-secondary)' }}>
-                  Problema
-                </h5>
-                <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--ldv-text)' }}>
-                  {doc.context.problem}
-                </p>
-              </div>
-            )}
-
-            {doc.context?.rootCause && (
-              <div
-                className="p-3 rounded-lg border"
-                style={{ borderColor: 'var(--ldv-border)', backgroundColor: 'var(--ldv-bg-secondary)' }}
-              >
-                <h5 className="text-xs font-medium mb-1" style={{ color: 'var(--ldv-text-secondary)' }}>
-                  Causa raiz
-                </h5>
-                <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--ldv-text)' }}>
-                  {doc.context.rootCause}
-                </p>
-              </div>
-            )}
-          </div>
-        </DetailSection>
+    <div className="space-y-4">
+      {/* Context */}
+      {context?.problem && (
+        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 space-y-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-red-600 dark:text-red-400">
+            Problema
+          </h4>
+          <p className="text-sm text-red-800 dark:text-red-200">{context.problem}</p>
+        </div>
       )}
 
-      {hasFixes && (
-        <DetailSection title="Correcoes">
-          <div className="space-y-3">
-            {doc.fixes!.map((fix, i) => (
-              <div
-                key={fix.id}
-                className="p-4 rounded-lg border"
-                style={{ borderColor: 'var(--ldv-border)', backgroundColor: 'var(--ldv-bg-secondary)' }}
-              >
-                <div className="flex items-start gap-3">
-                  <span
-                    className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0"
-                    style={{ backgroundColor: 'var(--ldv-accent)', color: '#ffffff' }}
-                  >
-                    {i + 1}
-                  </span>
-                  <div className="flex-1 space-y-2">
-                    <p className="text-sm font-medium" style={{ color: 'var(--ldv-text)' }}>
-                      {fix.title}
-                    </p>
-                    <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--ldv-text-secondary)' }}>
-                      {fix.description}
-                    </p>
+      {context?.rootCause && (
+        <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 space-y-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+            Causa raiz
+          </h4>
+          <p className="text-sm text-amber-800 dark:text-amber-200">{context.rootCause}</p>
+        </div>
+      )}
 
-                    {fix.files && fix.files.length > 0 && (
-                      <div className="mt-2">
-                        <h6 className="text-xs font-medium mb-1" style={{ color: 'var(--ldv-text-secondary)' }}>
-                          Arquivos:
-                        </h6>
-                        <ul className="space-y-0.5">
-                          {fix.files.map((file, fi) => (
-                            <li
-                              key={fi}
-                              className="text-xs font-mono px-2 py-1 rounded"
-                              style={{ backgroundColor: 'var(--ldv-bg)', color: 'var(--ldv-accent)' }}
-                            >
-                              {file}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
+      {/* Progress */}
+      {total > 0 && (
+        <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+          <Wrench className="h-4 w-4" />
+          <span>
+            {total} {total === 1 ? 'fix aplicado' : 'fixes aplicados'}
+          </span>
+        </div>
+      )}
+
+      {/* Fixes summary list */}
+      {fixes.length > 0 && (
+        <ul className="space-y-1.5">
+          {fixes.map((fix) => {
+            const cat = fix.category ? CATEGORY_CONFIG[fix.category] : undefined;
+            return (
+              <li key={fix.id} className="flex items-start gap-2 text-sm">
+                <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-500" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-zinc-800 dark:text-zinc-100">
+                    <span className="text-zinc-400 mr-1">#{fix.id}</span>
+                    {fix.title}
+                  </span>
+                  {cat && (
+                    <span
+                      className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${cat.color}`}
+                    >
+                      {cat.label}
+                    </span>
+                  )}
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    {fix.description}
+                  </p>
                 </div>
-              </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* Impacted steps */}
+      {context?.impactedSteps && context.impactedSteps.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            Steps impactados
+          </h4>
+          <div className="flex flex-wrap gap-1.5">
+            {context.impactedSteps.map((step) => (
+              <span
+                key={step.order}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
+              >
+                <span className="text-zinc-400">#{step.order}</span>
+                {step.name}
+              </span>
             ))}
           </div>
-        </DetailSection>
+        </div>
       )}
 
-      {hasVerify && (
-        <DetailSection title="Verificacao">
-          <ul className="space-y-2">
-            {doc.verify!.map((step, i) => (
-              <li key={i} className="flex items-start gap-3">
+      {/* Links */}
+      {task.links && <TaskLinksSection links={task.links} />}
+    </div>
+  );
+}
+
+// --- TaskFixes (Tab Fixes) ---
+
+export function TaskFixes({ fixes }: { fixes: DocTaskFix[] }) {
+  if (!fixes || fixes.length === 0) return null;
+
+  return (
+    <div className="space-y-4">
+      {fixes.map((fix) => {
+        const cat = fix.category ? CATEGORY_CONFIG[fix.category] : undefined;
+        return (
+          <div
+            key={fix.id}
+            className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden"
+          >
+            {/* Header */}
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-700">
+              <span className="text-xs font-mono text-zinc-400">#{fix.id}</span>
+              <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
+                {fix.title}
+              </span>
+              {cat && (
                 <span
-                  className="inline-flex items-center justify-center w-5 h-5 rounded border shrink-0 mt-0.5"
-                  style={{ borderColor: 'var(--ldv-border)', backgroundColor: 'var(--ldv-bg)' }}
-                />
-                <span className="text-sm" style={{ color: 'var(--ldv-text)' }}>
-                  {step}
+                  className={`ml-auto inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${cat.color}`}
+                >
+                  <Tag className="h-2.5 w-2.5 mr-0.5" />
+                  {cat.label}
                 </span>
+              )}
+            </div>
+
+            <div className="p-4 space-y-3 bg-white dark:bg-zinc-900">
+              {/* Description */}
+              <div>
+                <h5 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                  O que foi feito
+                </h5>
+                <p className="text-sm text-zinc-700 dark:text-zinc-200">{fix.description}</p>
+              </div>
+
+              {/* Logic */}
+              {fix.logic && (
+                <div>
+                  <h5 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                    Como funciona
+                  </h5>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-300">{fix.logic}</p>
+                </div>
+              )}
+
+              {/* Files */}
+              {fix.files.length > 0 && (
+                <div>
+                  <h5 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                    Arquivos
+                  </h5>
+                  <ul className="space-y-0.5">
+                    {fix.files.map((f, i) => (
+                      <li
+                        key={i}
+                        className="text-xs font-mono text-zinc-500 dark:text-zinc-400"
+                      >
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Test file */}
+              {fix.testFile && (
+                <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                  <TestTube2 className="h-3 w-3" />
+                  <span className="font-mono">{fix.testFile}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// --- TaskTechnical (Tab Tecnico) ---
+
+export function TaskTechnical({ task }: { task: DocTask }) {
+  const files = Array.isArray(task.allFilesModified) ? task.allFilesModified : [];
+  const verify = Array.isArray(task.verify) ? task.verify : [];
+  const regression = task.regressionTests;
+  const hasFiles = files.length > 0;
+  const hasVerify = verify.length > 0;
+  const hasRegression = !!regression;
+
+  if (!hasFiles && !hasVerify && !hasRegression) return null;
+
+  return (
+    <div className="space-y-6">
+      {/* Regression tests */}
+      {hasRegression && <TaskRegressionSection regression={regression!} />}
+
+      {/* All files modified */}
+      {hasFiles && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 flex items-center gap-2">
+            <FileCode className="h-4 w-4 text-zinc-500" />
+            Arquivos Modificados ({files.length})
+          </h3>
+          <ul className="space-y-0.5">
+            {files.map((f, i) => (
+              <li
+                key={i}
+                className="text-sm font-mono text-zinc-600 dark:text-zinc-300 pl-6"
+              >
+                {f}
               </li>
             ))}
           </ul>
-        </DetailSection>
+        </div>
+      )}
+
+      {/* Verify */}
+      {hasVerify && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 flex items-center gap-2">
+            <ListChecks className="h-4 w-4 text-emerald-500" />
+            Verificacao ({verify.length})
+          </h3>
+          <ul className="space-y-1">
+            {verify.map((v, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-200 pl-6"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-emerald-500" />
+                {v}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
-  )
+  );
+}
+
+// --- Internal: Regression section ---
+
+function TaskRegressionSection({ regression }: { regression: DocTaskRegressionTests }) {
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 flex items-center gap-2">
+        <TestTube2 className="h-4 w-4 text-cyan-500" />
+        Testes de Regressao
+      </h3>
+
+      {regression.description && (
+        <p className="text-sm text-zinc-600 dark:text-zinc-300 pl-6">{regression.description}</p>
+      )}
+
+      {/* TDD 3-step cycle */}
+      {regression.cycle && (
+        <div className="ml-6 space-y-1.5">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            Ciclo TDD (3 etapas)
+          </h4>
+          <div className="space-y-1">
+            <div className="flex items-start gap-2 text-sm">
+              <span className="shrink-0 w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-bold">
+                1
+              </span>
+              <span className="text-zinc-700 dark:text-zinc-200">{regression.cycle.step1}</span>
+            </div>
+            <div className="flex items-start gap-2 text-sm">
+              <span className="shrink-0 w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 flex items-center justify-center text-[10px] font-bold">
+                2
+              </span>
+              <span className="text-zinc-700 dark:text-zinc-200">{regression.cycle.step2}</span>
+            </div>
+            <div className="flex items-start gap-2 text-sm">
+              <span className="shrink-0 w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-bold">
+                3
+              </span>
+              <span className="text-zinc-700 dark:text-zinc-200">{regression.cycle.step3}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suite result */}
+      {regression.suiteResult && (
+        <div className="ml-6 flex items-center gap-2 text-sm">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+          <span className="font-medium text-emerald-700 dark:text-emerald-400">
+            {regression.suiteResult}
+          </span>
+        </div>
+      )}
+
+      {/* Test files */}
+      {regression.files && regression.files.length > 0 && (
+        <div className="ml-6 space-y-1">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            Arquivos de teste
+          </h4>
+          <ul className="space-y-0.5">
+            {regression.files.map((f, i) => (
+              <li key={i} className="text-xs font-mono text-zinc-500 dark:text-zinc-400">
+                {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Exported functions */}
+      {regression.exportedFunctions && regression.exportedFunctions.length > 0 && (
+        <div className="ml-6 flex flex-wrap gap-1.5">
+          {regression.exportedFunctions.map((fn, i) => (
+            <span
+              key={i}
+              className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300"
+            >
+              {fn}()
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Backward-compatible wrapper ---
+
+interface DocTaskDetailProps {
+  doc: DocTask;
+}
+
+export function DocTaskDetail({ doc }: DocTaskDetailProps) {
+  return (
+    <div className="space-y-6">
+      <TaskOverview task={doc} />
+      {doc.fixes && doc.fixes.length > 0 && <TaskFixes fixes={doc.fixes} />}
+      <TaskTechnical task={doc} />
+    </div>
+  );
+}
+
+// --- Internal: Links section ---
+
+function TaskLinksSection({ links }: { links: DocTaskLinks }) {
+  const entries: { label: string; value: string }[] = [];
+  if (links.plan) entries.push({ label: 'Planejamento', value: links.plan });
+  if (links.successor) entries.push({ label: 'Continuidade', value: links.successor });
+  if (links.adrs) links.adrs.forEach((a) => entries.push({ label: 'ADR', value: a }));
+  if (links.relatedFiles) {
+    Object.entries(links.relatedFiles).forEach(([key, path]) => {
+      entries.push({ label: key.toUpperCase(), value: path });
+    });
+  }
+
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+        <Link2 className="h-3.5 w-3.5" />
+        Vinculos
+      </h4>
+      <div className="flex flex-wrap gap-2">
+        {entries.map((entry, i) => (
+          <span
+            key={i}
+            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700"
+          >
+            <span className="text-zinc-400">{entry.label}:</span>
+            <span className="font-medium text-zinc-700 dark:text-zinc-200">{entry.value}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
