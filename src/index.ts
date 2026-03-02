@@ -1,6 +1,6 @@
 // Layout & Theme
 export { DocsLayoutShell } from './components/DocsLayoutShell'
-export { DocsThemeProvider, useDocsTheme } from './components/DocsThemeProvider'
+export { useDocsTheme } from './components/DocsThemeProvider'
 export { DocsThemeToggle } from './components/DocsThemeToggle'
 
 // Main Viewer
@@ -30,7 +30,8 @@ export { DocTabs } from './components/DocTabs'
 export type { TabItem } from './components/DocTabs'
 
 // Diagrams
-export { MermaidDiagram } from './components/MermaidDiagram'
+// MermaidDiagram is intentionally NOT exported here to preserve code-splitting.
+// Import it directly from './components/MermaidDiagram' if needed.
 export { DiagramRenderer } from './components/diagrams/diagram-renderer'
 export { DependencyGraph } from './components/diagrams/dependency-graph'
 export { DiagramContainer } from './components/diagrams/diagram-container'

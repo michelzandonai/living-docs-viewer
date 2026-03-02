@@ -28,10 +28,20 @@ export function DocsViewer({
     }
   }, [theme, setTheme])
 
+  // Apply dark class on document.documentElement so Tailwind dark: classes work globally
+  useEffect(() => {
+    const root = document.documentElement
+    if (currentTheme === 'dark') {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
+  }, [currentTheme])
+
   // Load index on mount / apiUrl change
   useEffect(() => {
     setApiUrl(apiUrl)
-    loadIndex()
+    loadIndex(apiUrl)
   }, [apiUrl, setApiUrl, loadIndex])
 
   const themeClass = currentTheme === 'dark' ? 'dark' : ''
@@ -53,7 +63,7 @@ export function DocsViewer({
           </h2>
           <p className="text-zinc-500 dark:text-zinc-400">{error}</p>
           <button
-            onClick={loadIndex}
+            onClick={() => loadIndex()}
             className="mt-4 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity"
           >
             Tentar novamente

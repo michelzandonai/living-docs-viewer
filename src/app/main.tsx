@@ -1,6 +1,5 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { DocsThemeProvider } from '@/components/DocsThemeProvider'
 import { DocsViewer } from '@/components/DocsViewer'
 
 interface LivingDocsConfig {
@@ -8,13 +7,17 @@ interface LivingDocsConfig {
   theme?: 'light' | 'dark'
 }
 
-const config: LivingDocsConfig = (window as any).__LIVING_DOCS_CONFIG__ || {}
+declare global {
+  interface Window {
+    __LIVING_DOCS_CONFIG__?: LivingDocsConfig
+  }
+}
+
+const config: LivingDocsConfig = window.__LIVING_DOCS_CONFIG__ || {}
 const apiUrl = config.apiUrl || '/docs/api'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <DocsThemeProvider defaultTheme={config.theme}>
-      <DocsViewer apiUrl={apiUrl} />
-    </DocsThemeProvider>
+    <DocsViewer apiUrl={apiUrl} theme={config.theme} />
   </StrictMode>
 )

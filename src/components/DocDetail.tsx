@@ -37,9 +37,17 @@ import { PlanningOverview, PlanningRisks, PlanningTechnical } from './DocPlannin
 import { TaskOverview, TaskFixes, TaskTechnical } from './DocTaskDetail'
 import { DocTabs, type TabItem } from './DocTabs'
 
-// Lazy load heavy diagram component - only loaded when user opens the Dados tab
+// Lazy load heavy diagram components - only loaded when user opens the relevant tab
 const LazyMermaidDiagram = React.lazy(() =>
   import('./MermaidDiagram').then((m) => ({ default: m.MermaidDiagram }))
+)
+
+const LazyDiagramRenderer = React.lazy(() =>
+  import('./diagrams/diagram-renderer').then((m) => ({ default: m.DiagramRenderer }))
+)
+
+const LazyDependencyGraph = React.lazy(() =>
+  import('./diagrams/dependency-graph').then((m) => ({ default: m.DependencyGraph }))
 )
 
 function DiagramFallback() {
@@ -119,9 +127,7 @@ interface DocDetailContentProps {
 }
 
 function DocDetailContent({ doc, catalogs, index }: DocDetailContentProps) {
-  // indexedDocIds will be used when DependencyGraph component is added
-  const _indexedDocIds = index ? new Set(index.documents.map((d) => d.id)) : new Set<string>()
-  void _indexedDocIds
+  const indexedDocIds = index ? new Set(index.documents.map((d) => d.id)) : new Set<string>()
 
   const sections = Array.isArray(doc.sections) ? doc.sections : []
   const tables = Array.isArray(doc.tables) ? doc.tables : []
@@ -311,7 +317,11 @@ function DocDetailContent({ doc, catalogs, index }: DocDetailContentProps) {
                   key={diagram.id || `${doc.id}-diagram-${diagramIndex}`}
                   fallback={<DiagramFallback />}
                 >
-                  <LazyMermaidDiagram diagram={diagram} />
+                  {diagram.nodes?.length ? (
+                    <LazyDiagramRenderer diagram={diagram} index={index ?? undefined} currentDocId={doc.id} />
+                  ) : diagram.mermaid ? (
+                    <LazyMermaidDiagram diagram={diagram} />
+                  ) : null}
                 </Suspense>
               ))}
             </div>
@@ -327,7 +337,12 @@ function DocDetailContent({ doc, catalogs, index }: DocDetailContentProps) {
       badge: hasReferences ? String(references.length) : undefined,
       content: () => (
         <div className="space-y-8">
-          {hasReferences && <DocReferences references={references} />}
+          {hasReferences && <DocReferences references={references} indexedDocIds={indexedDocIds} />}
+          {index && (
+            <Suspense fallback={<div>Carregando grafo...</div>}>
+              <LazyDependencyGraph index={index} currentDocId={doc.id} />
+            </Suspense>
+          )}
           {hasChangelog && <DocChangelog changelog={changelog} />}
         </div>
       ),

@@ -1,6 +1,20 @@
 import { Router, static as expressStatic } from 'express'
 import { readFileSync } from 'fs'
-import { resolve, join } from 'path'
+import { resolve, join, dirname } from 'path'
+import { fileURLToPath } from 'url'
+
+function getCurrentDirname(): string {
+  try {
+    if (typeof import.meta?.url === 'string') {
+      return dirname(fileURLToPath(import.meta.url))
+    }
+  } catch {
+    // fallback to __dirname for CJS
+  }
+  return __dirname
+}
+
+const currentDir = getCurrentDirname()
 
 interface LivingDocsOptions {
   docsPath: string
@@ -9,9 +23,17 @@ interface LivingDocsOptions {
   basePath?: string
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 export function createLivingDocsMiddleware(options: LivingDocsOptions): Router {
   const router = Router()
-  const appDir = resolve(__dirname, '../app')
+  const appDir = resolve(currentDir, '../app')
 
   router.use('/api', expressStatic(options.docsPath, { index: false }))
 
@@ -26,7 +48,7 @@ export function createLivingDocsMiddleware(options: LivingDocsOptions): Router {
     }
 
     const html = htmlTemplate
-      .replace('<!-- TITLE_PLACEHOLDER -->', options.title || 'Documentacao')
+      .replace('<!-- TITLE_PLACEHOLDER -->', escapeHtml(options.title || 'Documentacao'))
       .replace(
         '<!-- CONFIG_PLACEHOLDER -->',
         `<script>window.__LIVING_DOCS_CONFIG__ = ${JSON.stringify(config)}</script>`

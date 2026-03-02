@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import type { DocsIndex, DocsIndexEntry, Doc, Catalogs, DocType } from '@/lib/types'
+import type { DocsIndex, Doc, Catalogs, DocType } from '@/lib/types'
 
 interface DocsState {
   // API data
@@ -24,7 +24,7 @@ interface DocsState {
 
   // Actions - API
   setApiUrl: (url: string) => void
-  loadIndex: () => Promise<void>
+  loadIndex: (overrideUrl?: string) => Promise<void>
   selectDoc: (docId: string) => Promise<void>
 
   // Actions - search & filter
@@ -39,9 +39,6 @@ interface DocsState {
   // Actions - theme
   toggleTheme: () => void
   setTheme: (theme: 'light' | 'dark') => void
-
-  // Derived
-  filteredDocs: () => DocsIndexEntry[]
 }
 
 import type { StoreApi, UseBoundStore } from 'zustand'
@@ -73,8 +70,8 @@ export const useDocsStore: UseBoundStore<StoreApi<DocsState>> = create<DocsState
         state.apiUrl = url
       }),
 
-    loadIndex: async () => {
-      const { apiUrl } = get()
+    loadIndex: async (overrideUrl?: string) => {
+      const apiUrl = overrideUrl || get().apiUrl
       set((state) => {
         state.loading = true
         state.error = null
@@ -177,29 +174,5 @@ export const useDocsStore: UseBoundStore<StoreApi<DocsState>> = create<DocsState
         state.theme = theme
       }),
 
-    // Derived
-    filteredDocs: () => {
-      const { index, searchQuery, typeFilter } = get()
-      if (!index) return []
-
-      let docs = index.documents
-
-      if (typeFilter) {
-        docs = docs.filter((d) => d.type === typeFilter)
-      }
-
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase()
-        docs = docs.filter(
-          (d) =>
-            d.id.toLowerCase().includes(q) ||
-            d.title.toLowerCase().includes(q) ||
-            d.summary.toLowerCase().includes(q) ||
-            d.tagIds.some((t) => t.toLowerCase().includes(q))
-        )
-      }
-
-      return docs
-    },
   }))
 )

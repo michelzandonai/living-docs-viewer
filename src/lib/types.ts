@@ -327,7 +327,7 @@ export interface ResolvedTag {
 
 export interface DocsViewerProps {
   apiUrl: string;
-  theme?: 'light' | 'dark' | 'system';
+  theme?: 'light' | 'dark';
   className?: string;
   onDocSelect?: (docId: string) => void;
 }
