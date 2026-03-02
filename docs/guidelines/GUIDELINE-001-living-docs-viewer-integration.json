@@ -1,0 +1,99 @@
+{
+  "$docSchema": "energimap-doc/v1",
+  "id": "GUIDELINE-001",
+  "type": "guideline",
+  "metadata": {
+    "title": "Living Docs Viewer — Arquitetura, Uso e Integracao",
+    "status": "accepted",
+    "dateCreated": "2026-03-02",
+    "dateModified": "2026-03-02",
+    "authorIds": ["claude"],
+    "scope": "frontend",
+    "tagIds": ["living-docs", "react", "express", "integration"],
+    "summary": "Guia completo de como o Living Docs Viewer funciona internamente e como integra-lo em qualquer projeto Express para servir documentacao JSON no formato energimap-doc/v1."
+  },
+  "sections": [
+    {
+      "id": "sec-overview",
+      "title": "Visao Geral",
+      "content": "O **Living Docs Viewer** (`@ajuri/living-docs-viewer`) e uma biblioteca React que exibe documentacao JSON no formato `energimap-doc/v1`. Ele suporta 5 tipos de documento:\n\n| Tipo | Descricao |\n|---|---|\n| **ADR** | Architecture Decision Records — decisoes tecnicas |\n| **PRD** | Product Requirements Documents — requisitos de produto |\n| **Guideline** | Guias de implementacao e padroes |\n| **Task** | Historico de tarefas e implementacoes |\n| **Planning** | Documentos de planejamento |\n\n**Funcionalidades principais:**\n- Sidebar com arvore navegavel (agrupada por tipo e escopo)\n- Busca full-text com suporte a acentos\n- Tabs dinamicos por tipo de documento\n- Renderizacao de Markdown com syntax highlight\n- Diagramas interativos (Flowchart, Sequence, State, ER) via @xyflow/react\n- Diagramas Mermaid via lazy-loading\n- Grafo de dependencias entre documentos\n- Dark mode\n- Documentos recentes\n- Sidebar redimensionavel (240px–560px)"
+    },
+    {
+      "id": "sec-architecture",
+      "title": "Arquitetura Interna",
+      "content": "### Triple Build\n\nO projeto produz 3 artefatos de build independentes:\n\n```\nnpm run build        # 1. Library (ES + CJS) — componentes React reutilizaveis\nnpm run build:app    # 2. SPA (index.html + assets) — aplicacao standalone\nnpm run build:server # 3. Middleware Express (ESM + CJS) — servidor Node.js\n```\n\n**Comando para build completo:**\n```bash\nnpm run build:all    # Executa os 3 builds em sequencia\n```\n\n### Saida do Build\n\n```\ndist/\n├── index.es.js              # Library ESM\n├── index.cjs.js             # Library CJS\n├── index.d.ts               # TypeScript declarations\n├── living-docs-viewer.css   # Styles (Tailwind)\n├── app/                     # SPA standalone\n│   ├── index.html\n│   └── assets/              # JS, CSS, chunks\n└── server/                  # Express middleware\n    ├── middleware.js         # ESM\n    ├── middleware.cjs        # CJS\n    └── middleware.d.ts       # Types\n```\n\n### Exports do Package\n\n```json\n{\n  \".\": \"componentes React (DocsViewer, DocsSidebar, etc.)\",\n  \"./styles.css\": \"CSS do Tailwind compilado\",\n  \"./express\": \"middleware Express para servir a SPA\"\n}\n```"
+    },
+    {
+      "id": "sec-components",
+      "title": "Componentes Principais",
+      "content": "### Hierarquia de Componentes\n\n```\nDocsViewer (raiz)\n├── DocsLayoutShell (layout com sidebar redimensionavel)\n│   ├── DocsSidebar (arvore de navegacao)\n│   │   ├── DocSearch (barra de busca)\n│   │   ├── TypeFolder > ScopeFolder > DocItem (arvore)\n│   │   └── RecentDocs (documentos recentes)\n│   └── DocDetail (conteudo principal)\n│       ├── DocMetadataHeader (titulo, status, autores, tags)\n│       ├── DocTabs (navegacao por abas)\n│       ├── DocSectionRenderer (renderiza Markdown)\n│       ├── DocAdrDetail / DocPrdDetail / DocGuidelineDetail / DocTaskDetail / DocPlanningDetail\n│       ├── DocTableView (tabelas)\n│       ├── DocReferences (referencias cruzadas)\n│       ├── DocChangelog (historico de mudancas)\n│       ├── DiagramRenderer (diagramas interativos — lazy)\n│       ├── DependencyGraph (grafo de dependencias — lazy)\n│       └── MermaidDiagram (diagramas Mermaid — lazy)\n```\n\n### DocsViewer — Componente Raiz\n\n```tsx\nimport { DocsViewer } from '@ajuri/living-docs-viewer'\nimport '@ajuri/living-docs-viewer/styles.css'\n\n<DocsViewer\n  apiUrl=\"http://localhost:3000/docs/api\"   // URL base da API de documentos\n  theme=\"light\"                              // 'light' | 'dark'\n  className=\"h-screen\"                       // Classes CSS extras\n  onDocSelect={(docId) => console.log(docId)} // Callback ao selecionar doc\n/>\n```\n\n### Estado Global (Zustand + Immer)\n\nTodo o estado e gerenciado por um unico Zustand store (`useDocsStore`):\n\n| Estado | Tipo | Descricao |\n|---|---|---|\n| `apiUrl` | string | URL da API |\n| `index` | DocsIndex | Indice de documentos |\n| `catalogs` | Catalogs | Autores, tags, glossario |\n| `currentDoc` | Doc | Documento selecionado |\n| `searchQuery` | string | Texto de busca |\n| `typeFilter` | DocType | Filtro por tipo |\n| `expandedNodes` | Record | Nos expandidos na arvore |\n| `theme` | 'light'/'dark' | Tema atual |"
+    },
+    {
+      "id": "sec-data-flow",
+      "title": "Fluxo de Dados",
+      "content": "### Como a SPA Carrega Documentos\n\n1. O Express middleware injeta config no HTML via `window.__LIVING_DOCS_CONFIG__`\n2. O `DocsViewer` inicializa o store com `apiUrl` e `theme`\n3. Na montagem, faz 4 requests paralelos:\n   - `GET {apiUrl}/docs-index.json` — indice de todos os documentos\n   - `GET {apiUrl}/_catalogs/authors.json` — catalogo de autores\n   - `GET {apiUrl}/_catalogs/tags.json` — catalogo de tags\n   - `GET {apiUrl}/_catalogs/glossary.json` — glossario\n4. Ao clicar em um documento na sidebar:\n   - `GET {apiUrl}/{entry.path}` — carrega o JSON completo do documento\n5. O componente de detalhe renderiza conforme o `type` do documento\n\n### Estrutura do docs-index.json\n\n```json\n{\n  \"$docSchema\": \"energimap-doc/v1\",\n  \"generatedAt\": \"2026-03-02T00:00:00Z\",\n  \"stats\": { \"total\": 166, \"byType\": { \"task\": 155, \"guideline\": 4, \"adr\": 3, \"prd\": 4 } },\n  \"documents\": [\n    {\n      \"id\": \"TASK-001\",\n      \"type\": \"task\",\n      \"title\": \"Titulo do documento\",\n      \"path\": \"tasks/TASK-001-nome.json\",\n      \"status\": \"completed\",\n      \"scope\": \"api\",\n      \"dateCreated\": \"2026-01-15\",\n      \"dateModified\": \"2026-01-20\",\n      \"tagIds\": [\"oracle\", \"material\"]\n    }\n  ]\n}\n```\n\n### Estrutura Obrigatoria de Pastas\n\n```\ndocs/\n├── docs-index.json          # Indice gerado (obrigatorio)\n├── _catalogs/               # Catalogos\n│   ├── authors.json\n│   ├── tags.json\n│   └── glossary.json\n├── _schema/                 # Schemas (opcional)\n├── adr/                     # ADRs\n├── prd/                     # PRDs\n├── guidelines/              # Guidelines\n├── tasks/                   # Tasks\n└── planning/                # Planejamentos\n```"
+    },
+    {
+      "id": "sec-integration-express",
+      "title": "Passo a Passo — Integracao com Express",
+      "content": "### Pre-requisitos\n\n- Node.js >= 18\n- Express >= 4.x\n- Pasta `docs/` com documentos JSON no formato `energimap-doc/v1`\n- Arquivo `docs/docs-index.json` gerado\n\n### Passo 1 — Instalar a Dependencia\n\n**Via npm pack (monorepo local):**\n```bash\n# No projeto living-docs-viewer:\nnpm run build:all\nnpm pack\n# Gera: ajuri-living-docs-viewer-0.1.0.tgz\n\n# No projeto Express:\nnpm install /caminho/para/ajuri-living-docs-viewer-0.1.0.tgz\n```\n\n**Via npm registry (quando publicado):**\n```bash\nnpm install @ajuri/living-docs-viewer\n```\n\n### Passo 2 — Configurar o Middleware\n\nNo arquivo onde o Express e configurado (ex: `express-adapter.ts` ou `app.ts`):\n\n```typescript\nimport { createLivingDocsMiddleware } from '@ajuri/living-docs-viewer/express'\nimport { resolve } from 'path'\n\nconst docsPath = resolve(__dirname, '../docs')  // Caminho absoluto para docs/\n\napp.use('/docs', createLivingDocsMiddleware({\n  docsPath,                              // Obrigatorio: pasta com os JSONs\n  title: 'Meu Projeto — Documentacao',   // Opcional: titulo da pagina\n  theme: 'light',                        // Opcional: 'light' | 'dark'\n  basePath: '/docs',                     // Opcional: prefixo das rotas\n}))\n```\n\n### Passo 3 — Verificar\n\nAcesse no browser:\n- `http://localhost:PORTA/docs/` — Viewer completo\n- `http://localhost:PORTA/docs/api/docs-index.json` — Indice (deve retornar JSON)\n- `http://localhost:PORTA/docs/api/_catalogs/authors.json` — Catalogo de autores\n\n### Resultado\n\nO middleware cria 3 rotas automaticamente:\n\n| Rota | Funcao |\n|---|---|\n| `/docs/api/*` | Serve os JSONs de `docsPath` como arquivos estaticos |\n| `/docs/assets/*` | Serve os assets da SPA (JS, CSS) |\n| `/docs/*` | SPA fallback — retorna `index.html` com config injetada |"
+    },
+    {
+      "id": "sec-integration-docker",
+      "title": "Passo a Passo — Integracao com Docker",
+      "content": "### Problema\n\nAo usar `npm install file:../living-docs-viewer`, o npm cria symlinks que nao funcionam dentro de containers Docker.\n\n### Solucao: npm pack\n\n```bash\n# 1. Build e empacotamento\ncd /caminho/living-docs-viewer\nnpm run build:all\nnpm pack   # Gera ajuri-living-docs-viewer-0.1.0.tgz\n\n# 2. Instalar no projeto Express\ncd /caminho/meu-projeto\nnpm install /caminho/living-docs-viewer/ajuri-living-docs-viewer-0.1.0.tgz\n\n# 3. Build do projeto\nnpm run build\n```\n\n### Docker Compose — Volume para docs/\n\nPara que os documentos fiquem acessiveis dentro do container:\n\n```yaml\nservices:\n  api:\n    build: .\n    volumes:\n      - ./dist/:/app/dist/\n      - ./node_modules/:/app/node_modules/\n      - ./docs/:/app/docs/        # ESSENCIAL: monta a pasta docs\n      - ./.env:/app/.env\n    ports:\n      - '8888:8888'\n```\n\n### Fluxo Completo de Atualizacao\n\n```bash\n# Ao modificar o living-docs-viewer:\ncd living-docs-viewer\nnpm run build:all && npm pack\n\n# Atualizar no projeto Express:\ncd meu-projeto\nnpm install /caminho/ajuri-living-docs-viewer-0.1.0.tgz\nnpm run build\ndocker restart meu-container\n```"
+    },
+    {
+      "id": "sec-customization",
+      "title": "Customizacao e Uso como Library",
+      "content": "### Uso como Componente React (sem middleware)\n\nSe voce ja tem um projeto React e quer apenas o viewer:\n\n```tsx\nimport { DocsViewer } from '@ajuri/living-docs-viewer'\nimport '@ajuri/living-docs-viewer/styles.css'\n\nfunction DocsPage() {\n  return (\n    <DocsViewer\n      apiUrl=\"https://minha-api.com/docs/api\"\n      theme=\"dark\"\n      onDocSelect={(id) => console.log('Selecionou:', id)}\n    />\n  )\n}\n```\n\n### Uso de Componentes Individuais\n\nTodos os componentes sao exportados individualmente:\n\n```tsx\nimport {\n  DocsSidebar,\n  DocDetail,\n  DocMetadataHeader,\n  DocTabs,\n  useDocsStore,\n  useDocsTheme,\n} from '@ajuri/living-docs-viewer'\n```\n\n### Acessando o Store\n\n```tsx\nimport { useDocsStore } from '@ajuri/living-docs-viewer'\n\nfunction MyComponent() {\n  const currentDoc = useDocsStore((s) => s.currentDoc)\n  const searchQuery = useDocsStore((s) => s.searchQuery)\n  const setSearchQuery = useDocsStore((s) => s.setSearchQuery)\n  const theme = useDocsStore((s) => s.theme)\n  const toggleTheme = useDocsStore((s) => s.toggleTheme)\n\n  return <div>{currentDoc?.metadata?.title}</div>\n}\n```\n\n### Dark Mode\n\nO tema e controlado pelo store e aplica a classe `dark` no `document.documentElement`. O CSS usa classes Tailwind `dark:` para estilizacao."
+    },
+    {
+      "id": "sec-doc-format",
+      "title": "Formato dos Documentos JSON",
+      "content": "### Schema Base (energimap-doc/v1)\n\nTodo documento segue esta estrutura minima:\n\n```json\n{\n  \"$docSchema\": \"energimap-doc/v1\",\n  \"id\": \"TASK-001\",\n  \"type\": \"task\",\n  \"metadata\": {\n    \"title\": \"Titulo do Documento\",\n    \"status\": \"completed\",\n    \"dateCreated\": \"2026-01-15\",\n    \"dateModified\": \"2026-01-20\",\n    \"authorIds\": [\"claude\"],\n    \"scope\": \"api\",\n    \"tagIds\": [\"oracle\"],\n    \"summary\": \"Resumo curto do documento\"\n  },\n  \"sections\": [\n    {\n      \"id\": \"sec-overview\",\n      \"title\": \"Titulo da Secao\",\n      \"content\": \"Conteudo em **Markdown**\"\n    }\n  ],\n  \"references\": [],\n  \"tables\": [],\n  \"diagrams\": [],\n  \"changelog\": []\n}\n```\n\n### Campos Especificos por Tipo\n\n**ADR** — campo `adr`:\n```json\n{ \"adr\": { \"context\": \"...\", \"decision\": \"...\", \"consequences\": \"...\", \"alternatives\": [] } }\n```\n\n**PRD** — campo `prd`:\n```json\n{ \"prd\": { \"objective\": \"...\", \"requirements\": [], \"metrics\": [] } }\n```\n\n**Guideline** — campo `guideline`:\n```json\n{ \"guideline\": { \"appliesTo\": \"string ou array\", \"rules\": [], \"checklist\": [], \"antiPatterns\": [] } }\n```\n\n**Task** — campo `task`:\n```json\n{ \"task\": { \"fixes\": [], \"testCommands\": [], \"regressionTests\": [] } }\n```\n\n### Gerando o Indice\n\nO arquivo `docs-index.json` deve ser regenerado quando documentos sao adicionados:\n\n```bash\nnode scripts/generate-docs-index.js\n```"
+    },
+    {
+      "id": "sec-testing",
+      "title": "Testes",
+      "content": "### Suites de Teste\n\nO projeto inclui 113 testes em 6 suites:\n\n| Suite | Arquivo | Testes | Descricao |\n|---|---|---|---|\n| Middleware | `test/middleware.test.ts` | 34 | Express middleware, SPA serving, config injection, HTML escaping |\n| Search | `test/search-docs.test.ts` | 15 | Busca full-text com acentos |\n| Recent Docs | `test/recent-docs.test.ts` | 13 | Filtragem e ordenacao |\n| Catalogs | `test/resolve-catalogs.test.ts` | 14 | Resolucao de autores e tags |\n| Diagram Types | `test/normalize-diagram-type.test.ts` | 22 | Mapeamento de tipos |\n| Graph Builder | `test/build-graph.test.ts` | 15 | Construcao de grafos e ghost nodes |\n\n### Executando Testes\n\n```bash\nnpm test           # Roda todos os testes (Vitest)\nnpm run test:watch # Modo watch\n```\n\n### Ao Integrar no Projeto Express\n\nCrie testes E2E para validar a integracao:\n\n```typescript\ndescribe('Living Docs Viewer', () => {\n  it('GET /docs/ deve retornar HTML da SPA', async () => {\n    const res = await request(server).get('/docs/')\n    expect(res.status).toBe(200)\n    expect(res.text).toContain('__LIVING_DOCS_CONFIG__')\n  })\n\n  it('GET /docs/api/docs-index.json deve retornar o indice', async () => {\n    const res = await request(server).get('/docs/api/docs-index.json')\n    expect(res.status).toBe(200)\n    expect(res.body).toHaveProperty('documents')\n  })\n})\n```"
+    },
+    {
+      "id": "sec-troubleshooting",
+      "title": "Troubleshooting",
+      "content": "### Erros Comuns\n\n| Problema | Causa | Solucao |\n|---|---|---|\n| `appliesTo.map is not a function` | Campo `appliesTo` e string, nao array | Ja corrigido — componente aceita ambos |\n| `favicon.ico 404` | SPA nao tem favicon | Inofensivo — adicionar favicon se desejado |\n| Docker nao encontra docs | Volume nao montado | Adicionar `./docs/:/app/docs/` no docker-compose |\n| Symlink quebrado no Docker | Instalacao via `file:` protocol | Usar `npm pack` + instalar do `.tgz` |\n| `__dirname is not defined` | Middleware rodando em ESM | Ja corrigido — usa `import.meta.url` com fallback |\n| CSS nao carrega | Import errado | Importar `@ajuri/living-docs-viewer/styles.css` |\n| Build falha com TS4023 | Zustand + Immer infere tipo nao exportavel | Ja corrigido — tipo explicito no store |"
+    }
+  ],
+  "references": [
+    {"id": "ref-zustand", "description": "Zustand — https://github.com/pmndrs/zustand"},
+    {"id": "ref-xyflow", "description": "@xyflow/react — https://reactflow.dev"},
+    {"id": "ref-mermaid", "description": "Mermaid — https://mermaid.js.org"},
+    {"id": "ref-vite", "description": "Vite — https://vitejs.dev"},
+    {"id": "ref-energimap-doc", "description": "Schema energimap-doc/v1 — docs/_schema/"}
+  ],
+  "tables": [],
+  "diagrams": [],
+  "guideline": {
+    "appliesTo": "Integracao do Living Docs Viewer em qualquer projeto Express para servir documentacao JSON no formato energimap-doc/v1",
+    "lastRevision": "2026-03-02",
+    "rules": [
+      {"id": "R1", "description": "Sempre usar npm pack + .tgz para instalar em projetos com Docker, nunca file: protocol", "whenApplies": "Ao instalar em projetos que rodam em containers", "riskOfIgnoring": "Symlinks quebrados, middleware nao encontra arquivos da SPA"},
+      {"id": "R2", "description": "O volume docs/ DEVE estar montado no docker-compose para que os JSONs fiquem acessiveis", "whenApplies": "Em deploys com Docker", "riskOfIgnoring": "API retorna 404 para todos os documentos"},
+      {"id": "R3", "description": "O docs-index.json DEVE ser regenerado ao adicionar/remover documentos", "whenApplies": "Sempre que o conteudo da pasta docs/ mudar", "riskOfIgnoring": "Documentos novos nao aparecem na sidebar"},
+      {"id": "R4", "description": "O basePath do middleware DEVE corresponder ao path usado no app.use()", "whenApplies": "Na configuracao do middleware Express", "riskOfIgnoring": "URLs internas da API ficam incorretas, documentos nao carregam"},
+      {"id": "R5", "description": "Executar npm run build:all antes de npm pack para garantir que todos os artefatos estejam atualizados", "whenApplies": "Antes de gerar novo tarball para distribuicao", "riskOfIgnoring": "Tarball com artefatos desatualizados"}
+    ],
+    "checklist": [
+      "Executar npm run build:all no living-docs-viewer sem erros",
+      "Verificar que dist/app/index.html existe com assets",
+      "Verificar que dist/server/middleware.js exporta createLivingDocsMiddleware",
+      "Instalar via npm pack no projeto Express",
+      "Configurar middleware com docsPath, title, theme e basePath",
+      "Montar volume docs/ no docker-compose",
+      "Acessar /docs/ no browser e verificar que a SPA carrega",
+      "Acessar /docs/api/docs-index.json e verificar que retorna JSON",
+      "Verificar que documentos sao navegaveis na sidebar",
+      "Verificar que rotas existentes da API nao foram afetadas"
+    ]
+  }
+}
