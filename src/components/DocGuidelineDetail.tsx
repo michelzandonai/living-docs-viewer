@@ -10,16 +10,22 @@ interface OverviewProps {
 export function GuidelineOverview({ guideline }: OverviewProps) {
   if (!guideline) return null;
 
+  const appliesToItems = !guideline.appliesTo
+    ? []
+    : Array.isArray(guideline.appliesTo)
+      ? guideline.appliesTo
+      : [guideline.appliesTo];
+
   return (
     <div className="space-y-4">
-      {guideline.appliesTo && guideline.appliesTo.length > 0 && (
+      {appliesToItems.length > 0 && (
         <div className="p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm dark:shadow-none space-y-3">
           <h3 className="flex items-center gap-2 text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
             <BookOpen className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
             Aplica-se a
           </h3>
           <div className="flex flex-wrap gap-2">
-            {guideline.appliesTo.map((item) => (
+            {appliesToItems.map((item) => (
               <span
                 key={item}
                 className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-600"

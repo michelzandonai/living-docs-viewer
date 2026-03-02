@@ -151,7 +151,7 @@ export interface DocAdr extends DocBase {
 }
 
 export interface DocGuidelineFields {
-  appliesTo?: string[];
+  appliesTo?: string | string[];
   lastRevision?: string;
   rules?: {
     id: string;
