@@ -1,6 +1,6 @@
 import type { DocsIndexEntry } from './types';
 
-const ARCHIVED_STATUSES = new Set(['deprecated', 'superseded']);
+export const ARCHIVED_STATUSES = new Set(['deprecated', 'superseded']);
 
 /** Higher = shown first when dates are tied */
 const TYPE_PRIORITY: Record<string, number> = {

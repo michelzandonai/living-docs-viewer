@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { useDocsStore } from '@/hooks/use-docs-store'
 import { searchDocs } from '@/lib/search-docs'
-import { getRecentDocs } from '@/lib/recent-docs'
+import { getRecentDocs, ARCHIVED_STATUSES } from '@/lib/recent-docs'
 import { DocSearch } from './DocSearch'
 import type { DocsIndexEntry } from '@/lib/types'
 
@@ -103,8 +103,6 @@ interface TreeGroup {
   scopes: Record<string, DocsIndexEntry[]>
   total: number
 }
-
-const ARCHIVED_STATUSES = new Set(['deprecated', 'superseded'])
 
 interface BuildTreeResult {
   tree: TreeGroup[]
@@ -199,8 +197,15 @@ interface DocsSidebarProps {
   onDocSelect?: (docId: string) => void
 }
 
-const RECENTES_DEFAULT_LIMIT = 5
-const RECENTES_EXPANDED_LIMIT = 15
+const RECENTES_STEP = 5
+const RECENTES_STORAGE_KEY = 'living-docs-recentes-limit'
+
+function getStoredRecentesLimit(): number {
+  if (typeof window === 'undefined') return RECENTES_STEP
+  const stored = localStorage.getItem(RECENTES_STORAGE_KEY)
+  const parsed = stored ? parseInt(stored, 10) : NaN
+  return parsed >= RECENTES_STEP ? parsed : RECENTES_STEP
+}
 
 export function DocsSidebar({ className, onDocSelect }: DocsSidebarProps) {
   const index = useDocsStore((s) => s.index)
@@ -220,7 +225,10 @@ export function DocsSidebar({ className, onDocSelect }: DocsSidebarProps) {
 
   const { tree, archived } = useMemo(() => buildTree(filtered), [filtered])
 
-  const recentDocs = useMemo(() => getRecentDocs(filtered), [filtered])
+  const recentDocs = useMemo(
+    () => filtered.filter(d => !ARCHIVED_STATUSES.has(d.status)),
+    [filtered]
+  )
 
   // Expand "Recentes" by default on mount
   useEffect(() => {
@@ -272,7 +280,6 @@ export function DocsSidebar({ className, onDocSelect }: DocsSidebarProps) {
           {/* Recentes section */}
           {recentDocs.length > 0 && (
             <RecentesSection
-              docs={recentDocs}
               allDocs={filtered}
               isExpanded={!!expandedNodes['__recentes__']}
               onToggle={() => toggleNode('__recentes__')}
@@ -492,7 +499,6 @@ function DocItem({ doc, isActive, onClick }: DocItemProps) {
 // ---------------------------------------------------------------------------
 
 interface RecentesSectionProps {
-  docs: DocsIndexEntry[]
   allDocs: DocsIndexEntry[]
   isExpanded: boolean
   onToggle: () => void
@@ -501,18 +507,26 @@ interface RecentesSectionProps {
 }
 
 function RecentesSection({
-  docs,
   allDocs,
   isExpanded,
   onToggle,
   currentDocId,
   onDocClick,
 }: RecentesSectionProps) {
-  const [showMore, setShowMore] = useState(false)
-
-  const limit = showMore ? RECENTES_EXPANDED_LIMIT : RECENTES_DEFAULT_LIMIT
+  const [limit, setLimit] = useState(getStoredRecentesLimit)
   const visibleDocs = useMemo(() => getRecentDocs(allDocs, limit), [allDocs, limit])
-  const hasMore = docs.length > RECENTES_DEFAULT_LIMIT && !showMore
+  const totalAvailable = useMemo(
+    () => allDocs.filter(d => !ARCHIVED_STATUSES.has(d.status)).length,
+    [allDocs]
+  )
+  const canShowMore = limit < totalAvailable
+  const canShowLess = limit > RECENTES_STEP
+
+  function changeLimit(delta: number) {
+    const next = Math.max(RECENTES_STEP, limit + delta)
+    setLimit(next)
+    localStorage.setItem(RECENTES_STORAGE_KEY, String(next))
+  }
 
   return (
     <div>
@@ -548,29 +562,33 @@ function RecentesSection({
               onClick={() => onDocClick(doc.id)}
             />
           ))}
-          {hasMore && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setShowMore(true)
-              }}
-              className="flex items-center w-full pl-11 pr-2 py-1.5 text-xs text-amber-600 dark:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/30 rounded-md transition-colors cursor-pointer"
-            >
-              Ver mais...
-            </button>
-          )}
-          {showMore && visibleDocs.length > RECENTES_DEFAULT_LIMIT && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setShowMore(false)
-              }}
-              className="flex items-center w-full pl-11 pr-2 py-1.5 text-xs text-amber-600 dark:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/30 rounded-md transition-colors cursor-pointer"
-            >
-              Ver menos
-            </button>
+          {(canShowLess || canShowMore) && (
+            <div className="flex items-center pl-8 pr-2 py-1 gap-2">
+              {canShowLess && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    changeLimit(-RECENTES_STEP)
+                  }}
+                  className="text-xs text-amber-600 dark:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/30 rounded-md transition-colors cursor-pointer px-1.5 py-0.5"
+                >
+                  Ver menos
+                </button>
+              )}
+              {canShowMore && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    changeLimit(+RECENTES_STEP)
+                  }}
+                  className="text-xs text-amber-600 dark:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/30 rounded-md transition-colors cursor-pointer px-1.5 py-0.5"
+                >
+                  Ver mais...
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
