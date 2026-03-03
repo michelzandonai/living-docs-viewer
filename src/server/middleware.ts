@@ -148,7 +148,27 @@ export function createLivingDocsMiddleware(options: LivingDocsOptions): Router {
     }
   })
 
-  // Static files from docs directory (individual doc JSONs, catalogs, etc.)
+  // Enrich documents with derived fields (GUIDELINE-001: $docSchema, type, sections are derivable)
+  const DOC_DIRS = /^\/(adr|prd|planning|tasks|guidelines)\//
+  router.get('/api/*', (req, res, next) => {
+    const subPath = req.path.replace('/api', '')
+    if (!subPath.endsWith('.json') || !DOC_DIRS.test(subPath)) return next()
+    const filePath = join(options.docsPath, subPath)
+    try {
+      const raw = readFileSync(filePath, 'utf-8')
+      const doc = JSON.parse(raw)
+      if (doc.id && doc.metadata) {
+        if (!doc.$docSchema) doc.$docSchema = 'energimap-doc/v1'
+        if (!doc.type) doc.type = deriveType(subPath.slice(1))
+        if (!Array.isArray(doc.sections)) doc.sections = []
+      }
+      res.json(doc)
+    } catch {
+      next()
+    }
+  })
+
+  // Static files from docs directory (catalogs, non-doc files, etc.)
   router.use('/api', expressStatic(options.docsPath, { index: false }))
 
   // Static assets for the viewer app
