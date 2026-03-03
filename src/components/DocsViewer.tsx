@@ -21,9 +21,10 @@ export function DocsViewer({
   const currentTheme = useDocsStore((s) => s.theme)
   const setTheme = useDocsStore((s) => s.setTheme)
 
-  // Sync external theme prop with store
+  // Sync external theme prop with store (only if no user preference saved)
   useEffect(() => {
-    if (theme === 'light' || theme === 'dark') {
+    const saved = typeof window !== 'undefined' && localStorage.getItem('living-docs-theme')
+    if (!saved && (theme === 'light' || theme === 'dark')) {
       setTheme(theme)
     }
   }, [theme, setTheme])

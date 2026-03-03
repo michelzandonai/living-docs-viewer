@@ -62,7 +62,7 @@ export const useDocsStore: UseBoundStore<StoreApi<DocsState>> = create<DocsState
     expandedNodes: {},
 
     // UI state - theme
-    theme: 'light' as const,
+    theme: (typeof window !== 'undefined' && localStorage.getItem('living-docs-theme') as 'light' | 'dark') || 'light',
 
     // Actions - API
     setApiUrl: (url) =>
@@ -167,11 +167,13 @@ export const useDocsStore: UseBoundStore<StoreApi<DocsState>> = create<DocsState
     toggleTheme: () =>
       set((state) => {
         state.theme = state.theme === 'light' ? 'dark' : 'light'
+        if (typeof window !== 'undefined') localStorage.setItem('living-docs-theme', state.theme)
       }),
 
     setTheme: (theme) =>
       set((state) => {
         state.theme = theme
+        if (typeof window !== 'undefined') localStorage.setItem('living-docs-theme', theme)
       }),
 
   }))

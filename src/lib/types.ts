@@ -241,12 +241,27 @@ export interface DocTask extends DocBase {
   links?: DocTaskLinks;
 }
 
+export interface PlanningItem {
+  t: string;
+  d?: string;
+  s: 'p' | 'a' | 'd';
+  why?: string;
+}
+
+export interface PlanningPhase {
+  title: string;
+  rationale?: string;
+  items: PlanningItem[];
+}
+
 export interface DocPlanningFields {
   goal: string;
-  items: { t: string; d?: string; s: 'p' | 'a' | 'd' }[];
-  risks: { r: string; m: string }[];
-  files: string[];
-  verify: string[];
+  context?: Record<string, unknown>;
+  phases?: PlanningPhase[];
+  items?: PlanningItem[];
+  risks?: { r: string; m: string }[];
+  files?: string[];
+  verify?: string[];
 }
 
 export interface DocPlanning extends DocBase {

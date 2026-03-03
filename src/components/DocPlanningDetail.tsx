@@ -1,3 +1,5 @@
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   CircleDashed,
   Circle,
@@ -6,7 +8,7 @@ import {
   FileCode,
   ListChecks,
 } from 'lucide-react';
-import type { DocPlanningFields } from '@/lib/types';
+import type { DocPlanningFields, PlanningItem, PlanningPhase } from '@/lib/types';
 
 const STATUS_CONFIG = {
   p: { icon: CircleDashed, color: 'text-zinc-400', label: 'Pendente' },
@@ -14,12 +16,111 @@ const STATUS_CONFIG = {
   d: { icon: CheckCircle2, color: 'text-emerald-500', label: 'Concluido' },
 } as const;
 
+function getAllItems(planning: DocPlanningFields): PlanningItem[] {
+  if (planning.phases?.length) {
+    return planning.phases.flatMap((p) => p.items);
+  }
+  return Array.isArray(planning.items) ? planning.items : [];
+}
+
+// --- Item renderer (reused in both flat and phase modes) ---
+
+function PlanningItemRow({ item }: { item: PlanningItem }) {
+  const cfg = STATUS_CONFIG[item.s] ?? STATUS_CONFIG.p;
+  const Icon = cfg.icon;
+
+  return (
+    <li className="flex items-start gap-2 text-sm">
+      <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${cfg.color}`} />
+      <div className="min-w-0">
+        <span
+          className={
+            item.s === 'd'
+              ? 'line-through text-zinc-400 dark:text-zinc-500'
+              : 'text-zinc-800 dark:text-zinc-100'
+          }
+        >
+          {item.t}
+        </span>
+        {item.why && (
+          <p className="text-xs italic text-zinc-400 dark:text-zinc-500 mt-0.5">
+            ↳ Porque: {item.why}
+          </p>
+        )}
+        {item.d && (
+          <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 prose prose-xs dark:prose-invert max-w-none prose-p:my-0.5 prose-ul:my-0.5 prose-li:my-0 prose-code:text-xs prose-code:bg-zinc-100 dark:prose-code:bg-zinc-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {item.d}
+            </ReactMarkdown>
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+// --- Progress bar component ---
+
+function ProgressBar({
+  done,
+  total,
+  showLabel,
+}: {
+  done: number;
+  total: number;
+  showLabel?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+      {showLabel && <ListChecks className="h-4 w-4" />}
+      <span>
+        {done}/{total} concluidos
+      </span>
+      <div className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-emerald-500 rounded-full transition-all"
+          style={{ width: total > 0 ? `${(done / total) * 100}%` : '0%' }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// --- Phase group renderer ---
+
+function PhaseGroup({ phase }: { phase: PlanningPhase }) {
+  const doneCount = phase.items.filter((i) => i.s === 'd').length;
+  const total = phase.items.length;
+
+  return (
+    <div className="border-l-2 border-cyan-400 dark:border-cyan-600 pl-4 space-y-2">
+      <div>
+        <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+          {phase.title}
+        </h4>
+        {phase.rationale && (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+            {phase.rationale}
+          </p>
+        )}
+      </div>
+      <ProgressBar done={doneCount} total={total} />
+      <ul className="space-y-1.5">
+        {phase.items.map((item, i) => (
+          <PlanningItemRow key={i} item={item} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // --- PlanningOverview ---
 
 export function PlanningOverview({ planning }: { planning: DocPlanningFields }) {
-  const items = Array.isArray(planning.items) ? planning.items : [];
-  const doneCount = items.filter((i) => i.s === 'd').length;
-  const total = items.length;
+  const allItems = getAllItems(planning);
+  const doneCount = allItems.filter((i) => i.s === 'd').length;
+  const total = allItems.length;
+  const hasPhases = (planning.phases?.length ?? 0) > 0;
 
   return (
     <div className="space-y-4">
@@ -28,46 +129,23 @@ export function PlanningOverview({ planning }: { planning: DocPlanningFields }) 
         <p className="text-sm font-medium text-cyan-800 dark:text-cyan-200">{planning.goal}</p>
       </div>
 
-      {/* Progress */}
-      <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-        <ListChecks className="h-4 w-4" />
-        <span>
-          {doneCount}/{total} concluidos
-        </span>
-        <div className="flex-1 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-emerald-500 rounded-full transition-all"
-            style={{ width: total > 0 ? `${(doneCount / total) * 100}%` : '0%' }}
-          />
-        </div>
-      </div>
+      {/* Global progress */}
+      <ProgressBar done={doneCount} total={total} showLabel />
 
-      {/* Items */}
-      <ul className="space-y-1.5">
-        {items.map((item, i) => {
-          const cfg = STATUS_CONFIG[item.s] ?? STATUS_CONFIG.p;
-          const Icon = cfg.icon;
-          return (
-            <li key={i} className="flex items-start gap-2 text-sm">
-              <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${cfg.color}`} />
-              <div>
-                <span
-                  className={
-                    item.s === 'd'
-                      ? 'line-through text-zinc-400 dark:text-zinc-500'
-                      : 'text-zinc-800 dark:text-zinc-100'
-                  }
-                >
-                  {item.t}
-                </span>
-                {item.d && (
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{item.d}</p>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      {/* Phases or flat items */}
+      {hasPhases ? (
+        <div className="space-y-5">
+          {planning.phases!.map((phase, i) => (
+            <PhaseGroup key={i} phase={phase} />
+          ))}
+        </div>
+      ) : (
+        <ul className="space-y-1.5">
+          {allItems.map((item, i) => (
+            <PlanningItemRow key={i} item={item} />
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
