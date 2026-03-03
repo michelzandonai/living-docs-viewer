@@ -1,7 +1,8 @@
 import { Router, static as expressStatic } from 'express'
-import { readFileSync } from 'fs'
-import { resolve, join, dirname } from 'path'
+import { readFileSync, readdirSync } from 'fs'
+import { resolve, join, dirname, relative, extname } from 'path'
 import { fileURLToPath } from 'url'
+import type { DocsIndex, DocsIndexEntry } from '../lib/types'
 
 function getCurrentDirname(): string {
   try {
@@ -31,16 +32,131 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;')
 }
 
+const SKIP_DIRS = new Set(['_catalogs', '_schema', '_skill', '_deprecated', 'node_modules', '.git'])
+const SKIP_FILES = new Set(['docs-index.json'])
+
+/** Derive doc type from filesystem path */
+function deriveType(relPath: string): string | null {
+  const first = relPath.split('/')[0]
+  const map: Record<string, string> = {
+    adr: 'adr',
+    prd: 'prd',
+    planning: 'planning',
+    tasks: 'task',
+    guidelines: 'guideline',
+  }
+  return map[first] ?? null
+}
+
+/** Recursively collect JSON doc files */
+function walkJsonFiles(dir: string, root: string): string[] {
+  const results: string[] = []
+  let entries: { name: string; isDirectory: () => boolean; isFile: () => boolean }[]
+  try {
+    entries = readdirSync(dir, { withFileTypes: true }) as unknown as typeof entries
+  } catch {
+    return results
+  }
+  for (const entry of entries) {
+    const name = String(entry.name)
+    if (name.startsWith('.') || SKIP_DIRS.has(name)) continue
+    const fullPath = join(dir, name)
+    if (entry.isDirectory()) {
+      results.push(...walkJsonFiles(fullPath, root))
+    } else if (entry.isFile() && extname(name) === '.json' && !SKIP_FILES.has(name)) {
+      results.push(fullPath)
+    }
+  }
+  return results
+}
+
+/** Build DocsIndex by scanning the docs directory */
+function buildIndex(docsPath: string): DocsIndex {
+  const files = walkJsonFiles(docsPath, docsPath)
+  const documents: DocsIndexEntry[] = []
+  const graphNodes: { id: string; type: string; scope: string; status: string }[] = []
+  const graphEdges: { source: string; target: string; type: string }[] = []
+  const byType: Record<string, number> = {}
+  const byStatus: Record<string, number> = {}
+
+  for (const filePath of files) {
+    try {
+      const raw = readFileSync(filePath, 'utf-8')
+      const doc = JSON.parse(raw)
+      if (!doc.id || !doc.metadata) continue
+
+      const relPath = relative(docsPath, filePath)
+      const type = doc.type || deriveType(relPath) || 'unknown'
+
+      documents.push({
+        id: doc.id,
+        type,
+        title: doc.metadata.title || doc.id,
+        status: doc.metadata.status || 'unknown',
+        scope: doc.metadata.scope || 'shared',
+        dateCreated: doc.metadata.dateCreated || '',
+        dateModified: doc.metadata.dateModified,
+        tagIds: doc.metadata.tagIds || [],
+        summary: doc.metadata.summary || '',
+        path: relPath,
+      })
+
+      byType[type] = (byType[type] || 0) + 1
+      byStatus[doc.metadata.status || 'unknown'] = (byStatus[doc.metadata.status || 'unknown'] || 0) + 1
+
+      graphNodes.push({
+        id: doc.id,
+        type,
+        scope: doc.metadata.scope || 'shared',
+        status: doc.metadata.status || 'unknown',
+      })
+
+      if (Array.isArray(doc.references)) {
+        for (const ref of doc.references) {
+          if (ref.targetId) {
+            graphEdges.push({ source: doc.id, target: ref.targetId, type: ref.type || 'related' })
+          }
+        }
+      }
+    } catch {
+      // skip non-doc or invalid JSON
+    }
+  }
+
+  documents.sort((a, b) => a.type.localeCompare(b.type) || a.id.localeCompare(b.id))
+
+  return {
+    $docSchema: 'energimap-doc/v1',
+    generatedAt: new Date().toISOString(),
+    stats: { total: documents.length, byType, byStatus },
+    documents,
+    graph: { nodes: graphNodes, edges: graphEdges },
+  }
+}
+
 export function createLivingDocsMiddleware(options: LivingDocsOptions): Router {
   const router = Router()
   const appDir = resolve(currentDir, '../app')
 
+  // Dynamic index — scans docs directory on each request
+  router.get('/api/docs-index.json', (_req, res) => {
+    try {
+      const index = buildIndex(options.docsPath)
+      res.json(index)
+    } catch (e) {
+      res.status(500).json({ error: 'Falha ao gerar indice', detail: String(e) })
+    }
+  })
+
+  // Static files from docs directory (individual doc JSONs, catalogs, etc.)
   router.use('/api', expressStatic(options.docsPath, { index: false }))
 
+  // Static assets for the viewer app
   router.use(expressStatic(appDir, { index: false }))
 
   const htmlTemplate = readFileSync(join(appDir, 'index.html'), 'utf-8')
 
+  // SPA fallback
   router.get('*', (_req, res) => {
     const config = {
       apiUrl: `${options.basePath || ''}/api`,
