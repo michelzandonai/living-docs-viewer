@@ -1,5 +1,5 @@
 {
-  "name": "@ajuri/living-docs-viewer",
+  "name": "living-docs-viewer",
   "version": "0.3.0",
   "type": "module",
   "description": "React component library for viewing energimap-doc/v1 JSON documentation",
@@ -43,7 +43,6 @@
     "build:all": "npm run build && npm run build:app && npm run build:server",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
-    "prepare": "npm run build:all",
     "test": "vitest run",
     "test:watch": "vitest"
   },

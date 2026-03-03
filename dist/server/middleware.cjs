@@ -1,0 +1,179 @@
+"use strict";
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// src/server/middleware.ts
+var middleware_exports = {};
+__export(middleware_exports, {
+  createLivingDocsMiddleware: () => createLivingDocsMiddleware
+});
+module.exports = __toCommonJS(middleware_exports);
+var import_express = require("express");
+var import_fs = require("fs");
+var import_path = require("path");
+var import_url = require("url");
+var import_meta = {};
+function getCurrentDirname() {
+  try {
+    if (typeof import_meta?.url === "string") {
+      return (0, import_path.dirname)((0, import_url.fileURLToPath)(import_meta.url));
+    }
+  } catch {
+  }
+  return __dirname;
+}
+var currentDir = getCurrentDirname();
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+var SKIP_DIRS = /* @__PURE__ */ new Set(["_catalogs", "_schema", "_skill", "_deprecated", "node_modules", ".git"]);
+var SKIP_FILES = /* @__PURE__ */ new Set(["docs-index.json"]);
+function deriveType(relPath) {
+  const first = relPath.split("/")[0];
+  const map = {
+    adr: "adr",
+    prd: "prd",
+    planning: "planning",
+    tasks: "task",
+    guidelines: "guideline"
+  };
+  return map[first] ?? null;
+}
+function walkJsonFiles(dir, root) {
+  const results = [];
+  let entries;
+  try {
+    entries = (0, import_fs.readdirSync)(dir, { withFileTypes: true });
+  } catch {
+    return results;
+  }
+  for (const entry of entries) {
+    const name = String(entry.name);
+    if (name.startsWith(".") || SKIP_DIRS.has(name)) continue;
+    const fullPath = (0, import_path.join)(dir, name);
+    if (entry.isDirectory()) {
+      results.push(...walkJsonFiles(fullPath, root));
+    } else if (entry.isFile() && (0, import_path.extname)(name) === ".json" && !SKIP_FILES.has(name)) {
+      results.push(fullPath);
+    }
+  }
+  return results;
+}
+function buildIndex(docsPath) {
+  const files = walkJsonFiles(docsPath, docsPath);
+  const documents = [];
+  const graphNodes = [];
+  const graphEdges = [];
+  const byType = {};
+  const byStatus = {};
+  for (const filePath of files) {
+    try {
+      const raw = (0, import_fs.readFileSync)(filePath, "utf-8");
+      const doc = JSON.parse(raw);
+      if (!doc.id || !doc.metadata) continue;
+      const relPath = (0, import_path.relative)(docsPath, filePath);
+      const type = doc.type || deriveType(relPath) || "unknown";
+      documents.push({
+        id: doc.id,
+        type,
+        title: doc.metadata.title || doc.id,
+        status: doc.metadata.status || "unknown",
+        scope: doc.metadata.scope || "shared",
+        dateCreated: doc.metadata.dateCreated || "",
+        dateModified: doc.metadata.dateModified,
+        tagIds: doc.metadata.tagIds || [],
+        summary: doc.metadata.summary || "",
+        path: relPath
+      });
+      byType[type] = (byType[type] || 0) + 1;
+      byStatus[doc.metadata.status || "unknown"] = (byStatus[doc.metadata.status || "unknown"] || 0) + 1;
+      graphNodes.push({
+        id: doc.id,
+        type,
+        scope: doc.metadata.scope || "shared",
+        status: doc.metadata.status || "unknown"
+      });
+      if (Array.isArray(doc.references)) {
+        for (const ref of doc.references) {
+          if (ref.targetId) {
+            graphEdges.push({ source: doc.id, target: ref.targetId, type: ref.type || "related" });
+          }
+        }
+      }
+    } catch {
+    }
+  }
+  documents.sort((a, b) => a.type.localeCompare(b.type) || a.id.localeCompare(b.id));
+  return {
+    $docSchema: "energimap-doc/v1",
+    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    stats: { total: documents.length, byType, byStatus },
+    documents,
+    graph: { nodes: graphNodes, edges: graphEdges }
+  };
+}
+function createLivingDocsMiddleware(options) {
+  const router = (0, import_express.Router)();
+  const appDir = (0, import_path.resolve)(currentDir, "../app");
+  router.get("/api/docs-index.json", (_req, res) => {
+    try {
+      const index = buildIndex(options.docsPath);
+      res.json(index);
+    } catch (e) {
+      res.status(500).json({ error: "Falha ao gerar indice", detail: String(e) });
+    }
+  });
+  const DOC_DIRS = /^\/(adr|prd|planning|tasks|guidelines)\//;
+  router.get("/api/*", (req, res, next) => {
+    const subPath = req.path.replace("/api", "");
+    if (!subPath.endsWith(".json") || !DOC_DIRS.test(subPath)) return next();
+    const filePath = (0, import_path.join)(options.docsPath, subPath);
+    try {
+      const raw = (0, import_fs.readFileSync)(filePath, "utf-8");
+      const doc = JSON.parse(raw);
+      if (doc.id && doc.metadata) {
+        if (!doc.$docSchema) doc.$docSchema = "energimap-doc/v1";
+        if (!doc.type) doc.type = deriveType(subPath.slice(1));
+        if (!Array.isArray(doc.sections)) doc.sections = [];
+      }
+      res.json(doc);
+    } catch {
+      next();
+    }
+  });
+  router.use("/api", (0, import_express.static)(options.docsPath, { index: false }));
+  router.use((0, import_express.static)(appDir, { index: false }));
+  const htmlTemplate = (0, import_fs.readFileSync)((0, import_path.join)(appDir, "index.html"), "utf-8");
+  router.get("*", (_req, res) => {
+    const config = {
+      apiUrl: `${options.basePath || ""}/api`,
+      theme: options.theme || "light"
+    };
+    const html = htmlTemplate.replace("<!-- TITLE_PLACEHOLDER -->", escapeHtml(options.title || "Documentacao")).replace(
+      "<!-- CONFIG_PLACEHOLDER -->",
+      `<script>window.__LIVING_DOCS_CONFIG__ = ${JSON.stringify(config)}</script>`
+    );
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
+  });
+  return router;
+}
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  createLivingDocsMiddleware
+});
