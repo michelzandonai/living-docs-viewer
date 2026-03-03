@@ -88,6 +88,7 @@ function buildIndex(docsPath) {
       if (!doc.id || !doc.metadata) continue;
       const relPath = (0, import_path.relative)(docsPath, filePath);
       const type = doc.type || deriveType(relPath) || "unknown";
+      const stat = (0, import_fs.statSync)(filePath);
       documents.push({
         id: doc.id,
         type,
@@ -96,6 +97,7 @@ function buildIndex(docsPath) {
         scope: doc.metadata.scope || "shared",
         dateCreated: doc.metadata.dateCreated || "",
         dateModified: doc.metadata.dateModified,
+        _fileMtime: stat.mtime.toISOString(),
         tagIds: doc.metadata.tagIds || [],
         summary: doc.metadata.summary || "",
         path: relPath

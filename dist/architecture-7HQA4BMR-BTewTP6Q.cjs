@@ -1,1 +1,0 @@
-"use strict";Object.defineProperty(exports,Symbol.toStringTag,{value:"Module"});const e=require("./mermaid-parser.core-zwPePCDS.cjs");exports.ArchitectureModule=e.ArchitectureModule;exports.createArchitectureServices=e.createArchitectureServices;

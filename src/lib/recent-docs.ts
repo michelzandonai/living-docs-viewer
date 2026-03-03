@@ -12,7 +12,7 @@ const TYPE_PRIORITY: Record<string, number> = {
 };
 
 function getEffectiveDate(doc: DocsIndexEntry): string {
-  return doc.dateModified || doc.dateCreated || '';
+  return doc._fileMtime || doc.dateModified || doc.dateCreated || '';
 }
 
 export function getRecentDocs(
