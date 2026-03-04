@@ -88,8 +88,8 @@ Quando montado com `app.use('/docs', middleware)`:
 | Rota | Descricao |
 |------|-----------|
 | `GET /docs/api/docs-index.json` | Indice dinamico gerado com cache inteligente |
-| `GET /docs/api/ADR/shared/ADR-001.json` | Documento JSON individual |
-| `GET /docs/api/catalogs/authors.json` | Catalogo de autores |
+| `GET /docs/api/adr/ROOT-001.json` | Documento JSON individual |
+| `GET /docs/api/_catalogs/authors.json` | Catalogo de autores |
 | `GET /docs/*` | Fallback para SPA (index.html) |
 
 ---
@@ -98,13 +98,13 @@ Quando montado com `app.use('/docs', middleware)`:
 
 ### Tipos de Documento
 
-| Tipo | Pasta | Icone/Cor |
-|------|-------|-----------|
-| ADR | `docs/ADR/` | Cada tipo tem icone e cor proprios no viewer |
-| PRD | `docs/PRD/` | |
-| Guideline | `docs/guidelines/` | |
-| Task | `docs/tasks/` | |
-| Planning | `docs/planning/` | |
+| Tipo | Pasta |
+|------|-------|
+| ADR | `docs/adr/` |
+| PRD | `docs/prd/` |
+| Guideline | `docs/guidelines/` |
+| Task | `docs/tasks/` |
+| Planning | `docs/planning/` |
 
 Todos os tipos suportam filtro por tipo, status e scope na sidebar, alem de busca textual por titulo e summary.
 
@@ -215,41 +215,38 @@ Cada tipo de documento (ADR, PRD, Guideline, Task, Planning) possui campos tipo-
 
 ```
 docs/
-├── ADR/
-│   ├── shared/
-│   │   └── ADR-001-escolha-do-orm.json
-│   └── frontend/
-│       └── ADR-002-state-management.json
-├── PRD/
-│   └── shared/
-│       └── PRD-001-modulo-relatorios.json
-├── guidelines/
-│   └── shared/
-│       └── GUIDELINE-001-code-review.json
-├── tasks/
-│   └── shared/
-│       └── TASK-001-fix-login-bug.json
-├── planning/
-│   └── shared/
-│       └── PLANNING-001-sprint-42.json
-└── catalogs/
-    ├── authors.json
-    ├── tags.json
-    └── glossary.json
+├── adr/                    # Architecture Decision Records
+│   ├── ROOT-001.json
+│   └── BACK-002.json
+├── prd/                    # Product Requirement Documents
+│   └── PRD-ENTREGA.json
+├── guidelines/             # Diretrizes e padroes
+│   └── GUIDE-BACK-001.json
+├── tasks/                  # Tasks de desenvolvimento
+│   └── TASK-001.json
+├── planning/               # Documentos de planejamento
+│   └── PLAN-SPRINT-42.json
+├── _catalogs/              # Catalogs (opcional)
+│   ├── authors.json
+│   ├── tags.json
+│   └── glossary.json
+├── _schema/                # Schemas JSON (opcional)
+└── docs-index.json         # Gerado automaticamente pelo middleware
 ```
 
 **Convencoes:**
 
-- O nome da pasta pai determina o `type` do documento
-- A subpasta determina o `scope` (`shared`, `api`, `frontend`, `mobile`)
+- Pastas em **lowercase**: `adr/`, `prd/`, `guidelines/`, `tasks/`, `planning/`
 - Apenas arquivos `.json` sao processados
 - O campo `id` deve ser unico em todo o projeto
+- Subpastas dentro de cada tipo sao escaneadas recursivamente
+- Pastas com prefixo `_` e pasta `archived/` sao ignoradas
 
 ---
 
 ## Catalogs
 
-Catalogs sao arquivos JSON opcionais em `docs/catalogs/` que enriquecem os documentos.
+Catalogs sao arquivos JSON opcionais em `docs/_catalogs/` que enriquecem os documentos.
 
 ### authors.json
 
@@ -361,7 +358,7 @@ const selectDoc = useDocsStore((s) => s.selectDoc)
 
 ## Testes
 
-O projeto possui 38 testes automatizados em 7 suites, usando **vitest**:
+O projeto possui 138 testes automatizados em 7 suites, usando **vitest**:
 
 ```bash
 npm test           # Rodar todos
@@ -420,7 +417,7 @@ npm install
 ### Stack
 
 - React 19, TypeScript, Tailwind CSS
-- Zustand (estado global), Mermaid (diagramas), React Flow (grafo)
+- Zustand (estado global), Mermaid (diagramas), Cytoscape (grafo)
 - Vite (build lib + SPA), tsup (build server)
 - vitest (testes)
 
