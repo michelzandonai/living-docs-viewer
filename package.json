@@ -1,6 +1,6 @@
 {
   "name": "living-docs-viewer",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "type": "module",
   "description": "React component library for viewing energimap-doc/v1 JSON documentation",
   "repository": {

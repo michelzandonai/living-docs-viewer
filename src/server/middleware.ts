@@ -1,5 +1,5 @@
 import { Router, static as expressStatic } from 'express'
-import { readFileSync, readdirSync, statSync } from 'fs'
+import { readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
 import { resolve, join, dirname, relative, extname } from 'path'
 import { fileURLToPath } from 'url'
 import type { DocsIndex, DocsIndexEntry } from '../lib/types'
@@ -32,7 +32,7 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;')
 }
 
-const SKIP_DIRS = new Set(['_catalogs', '_schema', '_skill', '_deprecated', 'node_modules', '.git'])
+const SKIP_DIRS = new Set(['_catalogs', '_schema', '_skill', '_deprecated', 'archived', 'node_modules', '.git'])
 const SKIP_FILES = new Set(['docs-index.json'])
 
 /** Derive doc type from filesystem path */
@@ -121,19 +121,34 @@ function buildIndex(docsPath: string): DocsIndex {
         }
       }
     } catch {
-      // skip non-doc or invalid JSON
+      const fileName = filePath.split('/').pop() || filePath
+      console.warn(`[living-docs] Skipping ${fileName}: invalid JSON or unreadable`)
     }
   }
 
-  documents.sort((a, b) => a.type.localeCompare(b.type) || a.id.localeCompare(b.id))
+  documents.sort((a, b) => a.id.localeCompare(b.id))
+
+  const now = new Date()
+  const generatedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
 
   return {
     $docSchema: 'energimap-doc/v1',
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     stats: { total: documents.length, byType, byStatus },
     documents,
     graph: { nodes: graphNodes, edges: graphEdges },
   }
+}
+
+/**
+ * Generate docs-index.json by scanning the docs directory.
+ * Writes the index to disk and returns the number of documents indexed.
+ */
+export async function generateDocsIndex(docsPath: string): Promise<number> {
+  const index = buildIndex(docsPath)
+  const indexPath = join(docsPath, 'docs-index.json')
+  writeFileSync(indexPath, JSON.stringify(index, null, 2))
+  return index.documents.length
 }
 
 export function createLivingDocsMiddleware(options: LivingDocsOptions): Router {

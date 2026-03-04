@@ -20,7 +20,8 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/server/middleware.ts
 var middleware_exports = {};
 __export(middleware_exports, {
-  createLivingDocsMiddleware: () => createLivingDocsMiddleware
+  createLivingDocsMiddleware: () => createLivingDocsMiddleware,
+  generateDocsIndex: () => generateDocsIndex
 });
 module.exports = __toCommonJS(middleware_exports);
 var import_express = require("express");
@@ -41,7 +42,7 @@ var currentDir = getCurrentDirname();
 function escapeHtml(str) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-var SKIP_DIRS = /* @__PURE__ */ new Set(["_catalogs", "_schema", "_skill", "_deprecated", "node_modules", ".git"]);
+var SKIP_DIRS = /* @__PURE__ */ new Set(["_catalogs", "_schema", "_skill", "_deprecated", "archived", "node_modules", ".git"]);
 var SKIP_FILES = /* @__PURE__ */ new Set(["docs-index.json"]);
 function deriveType(relPath) {
   const first = relPath.split("/")[0];
@@ -118,16 +119,26 @@ function buildIndex(docsPath) {
         }
       }
     } catch {
+      const fileName = filePath.split("/").pop() || filePath;
+      console.warn(`[living-docs] Skipping ${fileName}: invalid JSON or unreadable`);
     }
   }
-  documents.sort((a, b) => a.type.localeCompare(b.type) || a.id.localeCompare(b.id));
+  documents.sort((a, b) => a.id.localeCompare(b.id));
+  const now = /* @__PURE__ */ new Date();
+  const generatedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}T${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
   return {
     $docSchema: "energimap-doc/v1",
-    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    generatedAt,
     stats: { total: documents.length, byType, byStatus },
     documents,
     graph: { nodes: graphNodes, edges: graphEdges }
   };
+}
+async function generateDocsIndex(docsPath) {
+  const index = buildIndex(docsPath);
+  const indexPath = (0, import_path.join)(docsPath, "docs-index.json");
+  (0, import_fs.writeFileSync)(indexPath, JSON.stringify(index, null, 2));
+  return index.documents.length;
 }
 function createLivingDocsMiddleware(options) {
   const router = (0, import_express.Router)();
@@ -177,5 +188,6 @@ function createLivingDocsMiddleware(options) {
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
-  createLivingDocsMiddleware
+  createLivingDocsMiddleware,
+  generateDocsIndex
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import express, { Router, static as expressStatic } from 'express'
-import { readFileSync } from 'fs'
-import { resolve, join } from 'path'
+import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
+import { resolve, join, relative, extname } from 'path'
 import type { Server } from 'http'
 import request from 'supertest'
 
@@ -34,11 +34,97 @@ function escapeHtml(str: string): string {
  * Recria o middleware usando sintaxe Express 5 para o catch-all.
  * A logica e identica ao createLivingDocsMiddleware do source.
  */
+function deriveType(relPath: string): string | null {
+  const first = relPath.split('/')[0]
+  const map: Record<string, string> = {
+    adr: 'adr', prd: 'prd', planning: 'planning', tasks: 'task', guidelines: 'guideline',
+  }
+  return map[first] ?? null
+}
+
+const SKIP_DIRS = new Set(['_catalogs', '_schema', '_skill', '_deprecated', 'archived', 'node_modules', '.git'])
+const SKIP_FILES = new Set(['docs-index.json'])
+
+function walkJsonFiles(dir: string, root: string): string[] {
+  const results: string[] = []
+  let entries: { name: string; isDirectory: () => boolean; isFile: () => boolean }[]
+  try {
+    entries = readdirSync(dir, { withFileTypes: true }) as unknown as typeof entries
+  } catch { return results }
+  for (const entry of entries) {
+    const name = String(entry.name)
+    if (name.startsWith('.') || SKIP_DIRS.has(name)) continue
+    const fullPath = join(dir, name)
+    if (entry.isDirectory()) results.push(...walkJsonFiles(fullPath, root))
+    else if (entry.isFile() && extname(name) === '.json' && !SKIP_FILES.has(name)) results.push(fullPath)
+  }
+  return results
+}
+
+function buildTestIndex(docsPath: string): object {
+  const files = walkJsonFiles(docsPath, docsPath)
+  const documents: object[] = []
+  const byType: Record<string, number> = {}
+  const byStatus: Record<string, number> = {}
+  for (const filePath of files) {
+    try {
+      const doc = JSON.parse(readFileSync(filePath, 'utf-8'))
+      if (!doc.id || !doc.metadata) continue
+      const relPath = relative(docsPath, filePath)
+      const type = doc.type || deriveType(relPath) || 'unknown'
+      const stat = statSync(filePath)
+      documents.push({
+        id: doc.id, type, title: doc.metadata.title || doc.id,
+        status: doc.metadata.status || 'unknown', scope: doc.metadata.scope || 'shared',
+        dateCreated: doc.metadata.dateCreated || '', dateModified: doc.metadata.dateModified,
+        _fileMtime: stat.mtime.toISOString(), tagIds: doc.metadata.tagIds || [],
+        summary: doc.metadata.summary || '', path: relPath,
+      })
+      byType[type] = (byType[type] || 0) + 1
+      byStatus[doc.metadata.status || 'unknown'] = (byStatus[doc.metadata.status || 'unknown'] || 0) + 1
+    } catch { /* skip */ }
+  }
+  return {
+    $docSchema: 'energimap-doc/v1',
+    generatedAt: new Date().toISOString(),
+    stats: { total: documents.length, byType, byStatus },
+    documents,
+    graph: { nodes: [], edges: [] },
+  }
+}
+
 function createTestMiddleware(options: LivingDocsOptions): Router {
   const router = Router()
   const appDir = DIST_APP_DIR
 
-  // Servir docs como API JSON
+  // Dynamic index
+  router.get('/api/docs-index.json', (_req, res) => {
+    try {
+      const index = buildTestIndex(options.docsPath)
+      res.json(index)
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to generate index' })
+    }
+  })
+
+  // Enrich documents with derived fields
+  const DOC_DIRS = /^\/(adr|prd|planning|tasks|guidelines)\//
+  router.get('/api/{*path}', (req, res, next) => {
+    const subPath = req.path.replace('/api', '')
+    if (!subPath.endsWith('.json') || !DOC_DIRS.test(subPath)) return next()
+    const filePath = join(options.docsPath, subPath)
+    try {
+      const doc = JSON.parse(readFileSync(filePath, 'utf-8'))
+      if (doc.id && doc.metadata) {
+        if (!doc.$docSchema) doc.$docSchema = 'energimap-doc/v1'
+        if (!doc.type) doc.type = deriveType(subPath.slice(1))
+        if (!Array.isArray(doc.sections)) doc.sections = []
+      }
+      res.json(doc)
+    } catch { next() }
+  })
+
+  // Servir docs como API JSON (static fallback for catalogs, etc.)
   router.use('/api', expressStatic(options.docsPath, { index: false }))
 
   // Servir assets estaticos do app buildado

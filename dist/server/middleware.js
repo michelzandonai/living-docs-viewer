@@ -1,6 +1,6 @@
 // src/server/middleware.ts
 import { Router, static as expressStatic } from "express";
-import { readFileSync, readdirSync, statSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync, statSync } from "fs";
 import { resolve, join, dirname, relative, extname } from "path";
 import { fileURLToPath } from "url";
 function getCurrentDirname() {
@@ -16,7 +16,7 @@ var currentDir = getCurrentDirname();
 function escapeHtml(str) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-var SKIP_DIRS = /* @__PURE__ */ new Set(["_catalogs", "_schema", "_skill", "_deprecated", "node_modules", ".git"]);
+var SKIP_DIRS = /* @__PURE__ */ new Set(["_catalogs", "_schema", "_skill", "_deprecated", "archived", "node_modules", ".git"]);
 var SKIP_FILES = /* @__PURE__ */ new Set(["docs-index.json"]);
 function deriveType(relPath) {
   const first = relPath.split("/")[0];
@@ -93,16 +93,26 @@ function buildIndex(docsPath) {
         }
       }
     } catch {
+      const fileName = filePath.split("/").pop() || filePath;
+      console.warn(`[living-docs] Skipping ${fileName}: invalid JSON or unreadable`);
     }
   }
-  documents.sort((a, b) => a.type.localeCompare(b.type) || a.id.localeCompare(b.id));
+  documents.sort((a, b) => a.id.localeCompare(b.id));
+  const now = /* @__PURE__ */ new Date();
+  const generatedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}T${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
   return {
     $docSchema: "energimap-doc/v1",
-    generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    generatedAt,
     stats: { total: documents.length, byType, byStatus },
     documents,
     graph: { nodes: graphNodes, edges: graphEdges }
   };
+}
+async function generateDocsIndex(docsPath) {
+  const index = buildIndex(docsPath);
+  const indexPath = join(docsPath, "docs-index.json");
+  writeFileSync(indexPath, JSON.stringify(index, null, 2));
+  return index.documents.length;
 }
 function createLivingDocsMiddleware(options) {
   const router = Router();
@@ -151,5 +161,6 @@ function createLivingDocsMiddleware(options) {
   return router;
 }
 export {
-  createLivingDocsMiddleware
+  createLivingDocsMiddleware,
+  generateDocsIndex
 };
