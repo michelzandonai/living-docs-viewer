@@ -1,0 +1,7 @@
+{
+  "architecture": { "category": "architecture", "label": "Arquitetura" },
+  "middleware": { "category": "architecture", "label": "Middleware" },
+  "bundled-docs": { "category": "domain", "label": "Bundled Docs" },
+  "guideline": { "category": "domain", "label": "Guideline" },
+  "dx": { "category": "quality", "label": "Developer Experience" }
+}

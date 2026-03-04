@@ -1,0 +1,45 @@
+{
+  "id": "ADR-001",
+  "metadata": {
+    "title": "GUIDELINE-001 Bundled na Lib",
+    "status": "accepted",
+    "dateCreated": "2026-03-04T15:30:00",
+    "dateModified": "2026-03-04T16:30:00",
+    "authorIds": ["claude"],
+    "tagIds": ["architecture", "bundled-docs", "middleware", "dx"]
+  },
+  "context": "GUIDELINE-001-living-docs-guide.json existia como copia identica em 6 projetos. Atualizar requeria copiar manualmente para todos. Risco de divergencia entre versoes.",
+  "decision": "Centralizar GUIDELINE-001 na lib living-docs-viewer como bundled doc. O middleware mescla automaticamente docs bundled (dist/docs/) com docs do projeto. Doc local tem prioridade (override por id). Nova opcao includeBundledDocs (default: true).",
+  "consequences": {
+    "positive": [
+      "Fonte unica: atualizar GUIDELINE-001 em um lugar propaga para todos",
+      "Zero configuracao: middleware serve bundled docs automaticamente",
+      "Override local preservado: projetos podem customizar se necessario",
+      "Agentes Claude encontram a guideline via cascata sem instrucao manual"
+    ],
+    "negative": [
+      "Projetos precisam atualizar living-docs-viewer para receber guideline atualizada",
+      "Bundled docs aumentam tamanho do pacote npm (minimo: ~25KB por doc)"
+    ],
+    "mitigations": [
+      "Bump de versao e rapido via npm install",
+      "Apenas docs essenciais sao bundled (GUIDELINE-001 por enquanto)"
+    ]
+  },
+  "sections": [
+    {
+      "title": "Mecanismo de Merge",
+      "content": "### buildIndex(docsPath, extraDocsPaths)\n\n1. Escaneia `docsPath` (projeto) primeiro, coleta IDs em Set\n2. Escaneia cada `extraPath` (bundled), pula docs cujo `id` ja existe\n3. Resultado: merge com prioridade local\n\n### Rota /api/* (fallback)\n\nSe arquivo nao existe em `docsPath`, tenta `bundledDocsPath`."
+    },
+    {
+      "title": "Cascata de Busca para Agentes",
+      "content": "1. `docs/guidelines/GUIDELINE-001-living-docs-guide.json` (local)\n2. `node_modules/living-docs-viewer/dist/docs/guidelines/GUIDELINE-001-living-docs-guide.json` (bundled)\n\nConfigurado em `~/.claude/CLAUDE.md` global e em cada projeto CLAUDE.md."
+    }
+  ],
+  "changelog": [
+    {
+      "date": "2026-03-04T16:30:00",
+      "description": "Criacao do ADR documentando decisao de bundled docs merge no middleware v0.5.0."
+    }
+  ]
+}

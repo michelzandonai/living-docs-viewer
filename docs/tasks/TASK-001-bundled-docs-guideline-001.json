@@ -1,0 +1,44 @@
+{
+  "id": "TASK-001",
+  "metadata": {
+    "title": "Bundled Docs Merge v0.5.0",
+    "status": "accepted",
+    "dateCreated": "2026-03-04T15:30:00",
+    "dateModified": "2026-03-04T16:30:00",
+    "authorIds": ["claude"],
+    "tagIds": ["bundled-docs", "middleware"]
+  },
+  "problem": "GUIDELINE-001 duplicada em 6 projetos. Atualizacao manual, risco de divergencia.",
+  "solution": "Centralizar na lib como bundled doc. Middleware faz merge automatico com override local.",
+  "modifiedFiles": [
+    "src/docs/guidelines/GUIDELINE-001-living-docs-guide.json",
+    "src/server/middleware.ts",
+    "package.json",
+    "test/generate-docs-index.test.ts",
+    "CLAUDE.md",
+    "~/.claude/CLAUDE.md"
+  ],
+  "testsPerformed": [
+    "Bundled docs aparecem no index sem override local",
+    "Override local vence sobre bundled doc com mesmo id",
+    "Sem extraDocsPaths bundled nao aparece",
+    "Rota /api/guidelines/GUIDELINE-001*.json serve bundled doc como fallback",
+    "139 testes passando (4 novos)"
+  ],
+  "sections": [
+    {
+      "title": "Projetos Atualizados",
+      "content": "5 projetos consumidores atualizados para v0.5.0:\n\n- **ajuri-api** — GUIDELINE-001 local deletada, bump, CLAUDE.md atualizado\n- **agencia-api** — GUIDELINE-001 local deletada, bump, CLAUDE.md atualizado\n- **indica-api** — GUIDELINE-001 local deletada, bump, CLAUDE.md atualizado\n- **energy-map-api** — GUIDELINE-001 local deletada, bump, CLAUDE.md atualizado\n- **talentos** — GUIDELINE-001 local deletada, bump, CLAUDE.md atualizado"
+    },
+    {
+      "title": "Hooks de Disciplina",
+      "content": "Configurados hooks globais em `~/.claude/settings.json`:\n\n- **UserPromptSubmit** — injeta lembrete de vincular a tasks e atualizar docs\n- **Stop** — prompt Haiku verifica task linkage e necessidade de atualizar PRDs/ADRs"
+    }
+  ],
+  "changelog": [
+    {
+      "date": "2026-03-04T16:30:00",
+      "description": "Registro da implementacao completa: bundled docs merge, atualizacao de 5 consumidores, hooks de disciplina."
+    }
+  ]
+}
