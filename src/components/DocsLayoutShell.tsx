@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { BookOpen, PanelLeftClose, PanelLeft, Sun, Moon } from 'lucide-react'
 import { useDocsStore } from '@/hooks/use-docs-store'
+import { version } from '../../package.json'
 
 interface DocsLayoutShellProps {
   sidebar: React.ReactNode
@@ -84,6 +85,14 @@ export function DocsLayoutShell({ sidebar, children }: DocsLayoutShellProps) {
         {/* Badge */}
         <span className="inline-flex items-center rounded-full bg-zinc-100 dark:bg-zinc-800/80 px-3 py-1 text-[11px] font-medium text-zinc-500 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-600">
           Living Documentation
+        </span>
+
+        {/* Version badge */}
+        <span
+          className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono"
+          title={`living-docs-viewer v${version}`}
+        >
+          v{version}
         </span>
 
         {/* Theme toggle (pushed to the right) */}

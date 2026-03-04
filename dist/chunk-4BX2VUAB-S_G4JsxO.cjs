@@ -1,0 +1,1 @@
+"use strict";const l=require("./mermaid.core-D-i83odx.cjs");function m(c,e){var i,t,o;c.accDescr&&((i=e.setAccDescription)==null||i.call(e,c.accDescr)),c.accTitle&&((t=e.setAccTitle)==null||t.call(e,c.accTitle)),c.title&&((o=e.setDiagramTitle)==null||o.call(e,c.title))}l.__name(m,"populateCommonDb");exports.populateCommonDb=m;
