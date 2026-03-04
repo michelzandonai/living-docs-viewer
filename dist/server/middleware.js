@@ -1,6 +1,6 @@
 // src/server/middleware.ts
 import { Router, static as expressStatic } from "express";
-import { readFileSync, writeFileSync, readdirSync, statSync } from "fs";
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from "fs";
 import { resolve, join, dirname, relative, extname } from "path";
 import { fileURLToPath } from "url";
 function getCurrentDirname() {
@@ -13,6 +13,16 @@ function getCurrentDirname() {
   return __dirname;
 }
 var currentDir = getCurrentDirname();
+function getBundledDocsPath() {
+  const bundledPath = resolve(currentDir, "../docs");
+  try {
+    if (existsSync(bundledPath) && statSync(bundledPath).isDirectory()) {
+      return bundledPath;
+    }
+  } catch {
+  }
+  return null;
+}
 function escapeHtml(str) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -49,19 +59,22 @@ function walkJsonFiles(dir, root) {
   }
   return results;
 }
-function buildIndex(docsPath) {
+function buildIndex(docsPath, extraDocsPaths = []) {
   const files = walkJsonFiles(docsPath, docsPath);
   const documents = [];
   const graphNodes = [];
   const graphEdges = [];
   const byType = {};
   const byStatus = {};
-  for (const filePath of files) {
+  const seenIds = /* @__PURE__ */ new Set();
+  function processFile(filePath, basePath) {
     try {
       const raw = readFileSync(filePath, "utf-8");
       const doc = JSON.parse(raw);
-      if (!doc.id || !doc.metadata) continue;
-      const relPath = relative(docsPath, filePath);
+      if (!doc.id || !doc.metadata) return;
+      if (seenIds.has(doc.id)) return;
+      seenIds.add(doc.id);
+      const relPath = relative(basePath, filePath);
       const type = doc.type || deriveType(relPath) || "unknown";
       const stat = statSync(filePath);
       documents.push({
@@ -97,6 +110,15 @@ function buildIndex(docsPath) {
       console.warn(`[living-docs] Skipping ${fileName}: invalid JSON or unreadable`);
     }
   }
+  for (const filePath of files) {
+    processFile(filePath, docsPath);
+  }
+  for (const extraPath of extraDocsPaths) {
+    const extraFiles = walkJsonFiles(extraPath, extraPath);
+    for (const filePath of extraFiles) {
+      processFile(filePath, extraPath);
+    }
+  }
   documents.sort((a, b) => a.id.localeCompare(b.id));
   const now = /* @__PURE__ */ new Date();
   const generatedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}T${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
@@ -108,8 +130,8 @@ function buildIndex(docsPath) {
     graph: { nodes: graphNodes, edges: graphEdges }
   };
 }
-async function generateDocsIndex(docsPath) {
-  const index = buildIndex(docsPath);
+async function generateDocsIndex(docsPath, extraDocsPaths = []) {
+  const index = buildIndex(docsPath, extraDocsPaths);
   const indexPath = join(docsPath, "docs-index.json");
   writeFileSync(indexPath, JSON.stringify(index, null, 2));
   return index.documents.length;
@@ -117,9 +139,12 @@ async function generateDocsIndex(docsPath) {
 function createLivingDocsMiddleware(options) {
   const router = Router();
   const appDir = resolve(currentDir, "../app");
+  const includeBundled = options.includeBundledDocs !== false;
+  const bundledDocsPath = includeBundled ? getBundledDocsPath() : null;
+  const extraPaths = bundledDocsPath ? [bundledDocsPath] : [];
   router.get("/api/docs-index.json", (_req, res) => {
     try {
-      const index = buildIndex(options.docsPath);
+      const index = buildIndex(options.docsPath, extraPaths);
       res.json(index);
     } catch (e) {
       res.status(500).json({ error: "Falha ao gerar indice", detail: String(e) });
@@ -129,7 +154,13 @@ function createLivingDocsMiddleware(options) {
   router.get("/api/*", (req, res, next) => {
     const subPath = req.path.replace("/api", "");
     if (!subPath.endsWith(".json") || !DOC_DIRS.test(subPath)) return next();
-    const filePath = join(options.docsPath, subPath);
+    let filePath = join(options.docsPath, subPath);
+    if (!existsSync(filePath) && bundledDocsPath) {
+      const bundledFile = join(bundledDocsPath, subPath);
+      if (existsSync(bundledFile)) {
+        filePath = bundledFile;
+      }
+    }
     try {
       const raw = readFileSync(filePath, "utf-8");
       const doc = JSON.parse(raw);
@@ -162,5 +193,6 @@ function createLivingDocsMiddleware(options) {
 }
 export {
   createLivingDocsMiddleware,
-  generateDocsIndex
+  generateDocsIndex,
+  getBundledDocsPath
 };

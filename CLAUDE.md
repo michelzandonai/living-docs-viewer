@@ -6,7 +6,7 @@ Biblioteca React + Express para visualizar documentos Living Docs (`energimap-do
 Renderiza JSONs como SPA interativa com sidebar, busca, tabs e diagramas ReactFlow.
 
 - **Repo**: github:michelzandonai/living-docs-viewer
-- **Versao**: 0.4.4
+- **Versao**: 0.5.0
 - **Consumidores**: agencia-api, energy-map-api, talentos, ajuri-api, indica-api
 
 ## Comandos
@@ -16,7 +16,8 @@ npm run dev            # Dev server (Vite)
 npm run build          # Build library (tsc + Vite)
 npm run build:app      # Build standalone app
 npm run build:server   # Build server middleware (tsup, ESM + CJS)
-npm run build:all      # Build completo (lib + app + server)
+npm run build:docs     # Copia src/docs para dist/docs (bundled docs)
+npm run build:all      # Build completo (lib + app + server + docs)
 npm run lint           # ESLint
 npm test               # Testes (Vitest)
 npm run test:watch     # Testes em modo watch
@@ -106,9 +107,21 @@ O viewer renderiza JSONs com esta estrutura:
 
 `_catalogs`, `_schema`, `_skill`, `_deprecated`, `archived`, `node_modules`, `.git`
 
+## Bundled Docs
+
+A lib inclui docs bundled em `src/docs/` (copiados para `dist/docs/` no build).
+O middleware automaticamente mescla bundled docs com docs do projeto:
+
+- **Prioridade**: doc local vence sobre bundled (override por `id`)
+- **Opcao**: `includeBundledDocs: false` para desabilitar
+- **Bundled atual**: `GUIDELINE-001-living-docs-guide.json`
+
+Isso permite que a GUIDELINE-001 esteja disponivel em todos os projetos consumidores
+sem precisar copiar o arquivo manualmente.
+
 ## Testes
 
-135 testes em 7 suites (Vitest). Testes cobrem:
+139 testes em 7 suites (Vitest). Testes cobrem:
 - **middleware.test.ts** - Rotas Express, static files, SPA fallback, injecao de config, escapeHtml
 - **generate-docs-index.test.ts** - Scan de diretorio, ordering, skip dirs, JSON invalido
 - **search-docs.test.ts** - Busca em documentos
@@ -126,5 +139,6 @@ O viewer renderiza JSONs com esta estrutura:
 
 ## Documentacao de Referencia
 
-- GUIDELINE-001-living-docs-guide.json nos projetos consumidores define o formato dos docs
-- O viewer apenas RENDERIZA — a criacao de docs segue GUIDELINE-001
+- GUIDELINE-001-living-docs-guide.json e bundled na lib (src/docs/guidelines/) — fonte canonica
+- Projetos consumidores herdam automaticamente via middleware (bundled docs merge)
+- Override local: colocar GUIDELINE-001 em docs/guidelines/ do projeto substitui a bundled

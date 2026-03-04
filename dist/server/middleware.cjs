@@ -21,7 +21,8 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var middleware_exports = {};
 __export(middleware_exports, {
   createLivingDocsMiddleware: () => createLivingDocsMiddleware,
-  generateDocsIndex: () => generateDocsIndex
+  generateDocsIndex: () => generateDocsIndex,
+  getBundledDocsPath: () => getBundledDocsPath
 });
 module.exports = __toCommonJS(middleware_exports);
 var import_express = require("express");
@@ -39,6 +40,16 @@ function getCurrentDirname() {
   return __dirname;
 }
 var currentDir = getCurrentDirname();
+function getBundledDocsPath() {
+  const bundledPath = (0, import_path.resolve)(currentDir, "../docs");
+  try {
+    if ((0, import_fs.existsSync)(bundledPath) && (0, import_fs.statSync)(bundledPath).isDirectory()) {
+      return bundledPath;
+    }
+  } catch {
+  }
+  return null;
+}
 function escapeHtml(str) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -75,19 +86,22 @@ function walkJsonFiles(dir, root) {
   }
   return results;
 }
-function buildIndex(docsPath) {
+function buildIndex(docsPath, extraDocsPaths = []) {
   const files = walkJsonFiles(docsPath, docsPath);
   const documents = [];
   const graphNodes = [];
   const graphEdges = [];
   const byType = {};
   const byStatus = {};
-  for (const filePath of files) {
+  const seenIds = /* @__PURE__ */ new Set();
+  function processFile(filePath, basePath) {
     try {
       const raw = (0, import_fs.readFileSync)(filePath, "utf-8");
       const doc = JSON.parse(raw);
-      if (!doc.id || !doc.metadata) continue;
-      const relPath = (0, import_path.relative)(docsPath, filePath);
+      if (!doc.id || !doc.metadata) return;
+      if (seenIds.has(doc.id)) return;
+      seenIds.add(doc.id);
+      const relPath = (0, import_path.relative)(basePath, filePath);
       const type = doc.type || deriveType(relPath) || "unknown";
       const stat = (0, import_fs.statSync)(filePath);
       documents.push({
@@ -123,6 +137,15 @@ function buildIndex(docsPath) {
       console.warn(`[living-docs] Skipping ${fileName}: invalid JSON or unreadable`);
     }
   }
+  for (const filePath of files) {
+    processFile(filePath, docsPath);
+  }
+  for (const extraPath of extraDocsPaths) {
+    const extraFiles = walkJsonFiles(extraPath, extraPath);
+    for (const filePath of extraFiles) {
+      processFile(filePath, extraPath);
+    }
+  }
   documents.sort((a, b) => a.id.localeCompare(b.id));
   const now = /* @__PURE__ */ new Date();
   const generatedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}T${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
@@ -134,8 +157,8 @@ function buildIndex(docsPath) {
     graph: { nodes: graphNodes, edges: graphEdges }
   };
 }
-async function generateDocsIndex(docsPath) {
-  const index = buildIndex(docsPath);
+async function generateDocsIndex(docsPath, extraDocsPaths = []) {
+  const index = buildIndex(docsPath, extraDocsPaths);
   const indexPath = (0, import_path.join)(docsPath, "docs-index.json");
   (0, import_fs.writeFileSync)(indexPath, JSON.stringify(index, null, 2));
   return index.documents.length;
@@ -143,9 +166,12 @@ async function generateDocsIndex(docsPath) {
 function createLivingDocsMiddleware(options) {
   const router = (0, import_express.Router)();
   const appDir = (0, import_path.resolve)(currentDir, "../app");
+  const includeBundled = options.includeBundledDocs !== false;
+  const bundledDocsPath = includeBundled ? getBundledDocsPath() : null;
+  const extraPaths = bundledDocsPath ? [bundledDocsPath] : [];
   router.get("/api/docs-index.json", (_req, res) => {
     try {
-      const index = buildIndex(options.docsPath);
+      const index = buildIndex(options.docsPath, extraPaths);
       res.json(index);
     } catch (e) {
       res.status(500).json({ error: "Falha ao gerar indice", detail: String(e) });
@@ -155,7 +181,13 @@ function createLivingDocsMiddleware(options) {
   router.get("/api/*", (req, res, next) => {
     const subPath = req.path.replace("/api", "");
     if (!subPath.endsWith(".json") || !DOC_DIRS.test(subPath)) return next();
-    const filePath = (0, import_path.join)(options.docsPath, subPath);
+    let filePath = (0, import_path.join)(options.docsPath, subPath);
+    if (!(0, import_fs.existsSync)(filePath) && bundledDocsPath) {
+      const bundledFile = (0, import_path.join)(bundledDocsPath, subPath);
+      if ((0, import_fs.existsSync)(bundledFile)) {
+        filePath = bundledFile;
+      }
+    }
     try {
       const raw = (0, import_fs.readFileSync)(filePath, "utf-8");
       const doc = JSON.parse(raw);
@@ -189,5 +221,6 @@ function createLivingDocsMiddleware(options) {
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   createLivingDocsMiddleware,
-  generateDocsIndex
+  generateDocsIndex,
+  getBundledDocsPath
 });

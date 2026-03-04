@@ -1,5 +1,5 @@
 import { Router, static as expressStatic } from 'express'
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'fs'
 import { resolve, join, dirname, relative, extname } from 'path'
 import { fileURLToPath } from 'url'
 import type { DocsIndex, DocsIndexEntry } from '../lib/types'
@@ -17,11 +17,25 @@ function getCurrentDirname(): string {
 
 const currentDir = getCurrentDirname()
 
-interface LivingDocsOptions {
+/** Resolve the path to bundled docs shipped with the library */
+export function getBundledDocsPath(): string | null {
+  const bundledPath = resolve(currentDir, '../docs')
+  try {
+    if (existsSync(bundledPath) && statSync(bundledPath).isDirectory()) {
+      return bundledPath
+    }
+  } catch {
+    // not available
+  }
+  return null
+}
+
+export interface LivingDocsOptions {
   docsPath: string
   title?: string
   theme?: 'light' | 'dark'
   basePath?: string
+  includeBundledDocs?: boolean
 }
 
 function escapeHtml(str: string): string {
@@ -70,22 +84,25 @@ function walkJsonFiles(dir: string, root: string): string[] {
   return results
 }
 
-/** Build DocsIndex by scanning the docs directory */
-function buildIndex(docsPath: string): DocsIndex {
+/** Build DocsIndex by scanning the docs directory, optionally merging bundled docs */
+function buildIndex(docsPath: string, extraDocsPaths: string[] = []): DocsIndex {
   const files = walkJsonFiles(docsPath, docsPath)
   const documents: DocsIndexEntry[] = []
   const graphNodes: { id: string; type: string; scope: string; status: string }[] = []
   const graphEdges: { source: string; target: string; type: string }[] = []
   const byType: Record<string, number> = {}
   const byStatus: Record<string, number> = {}
+  const seenIds = new Set<string>()
 
-  for (const filePath of files) {
+  function processFile(filePath: string, basePath: string): void {
     try {
       const raw = readFileSync(filePath, 'utf-8')
       const doc = JSON.parse(raw)
-      if (!doc.id || !doc.metadata) continue
+      if (!doc.id || !doc.metadata) return
+      if (seenIds.has(doc.id)) return // local override: skip if already seen
 
-      const relPath = relative(docsPath, filePath)
+      seenIds.add(doc.id)
+      const relPath = relative(basePath, filePath)
       const type = doc.type || deriveType(relPath) || 'unknown'
       const stat = statSync(filePath)
 
@@ -126,6 +143,19 @@ function buildIndex(docsPath: string): DocsIndex {
     }
   }
 
+  // Process project docs first (they take priority)
+  for (const filePath of files) {
+    processFile(filePath, docsPath)
+  }
+
+  // Then process extra paths (bundled docs) — skipped if id already seen
+  for (const extraPath of extraDocsPaths) {
+    const extraFiles = walkJsonFiles(extraPath, extraPath)
+    for (const filePath of extraFiles) {
+      processFile(filePath, extraPath)
+    }
+  }
+
   documents.sort((a, b) => a.id.localeCompare(b.id))
 
   const now = new Date()
@@ -143,9 +173,10 @@ function buildIndex(docsPath: string): DocsIndex {
 /**
  * Generate docs-index.json by scanning the docs directory.
  * Writes the index to disk and returns the number of documents indexed.
+ * When extraDocsPaths is provided, bundled docs are merged (local override wins).
  */
-export async function generateDocsIndex(docsPath: string): Promise<number> {
-  const index = buildIndex(docsPath)
+export async function generateDocsIndex(docsPath: string, extraDocsPaths: string[] = []): Promise<number> {
+  const index = buildIndex(docsPath, extraDocsPaths)
   const indexPath = join(docsPath, 'docs-index.json')
   writeFileSync(indexPath, JSON.stringify(index, null, 2))
   return index.documents.length
@@ -154,11 +185,14 @@ export async function generateDocsIndex(docsPath: string): Promise<number> {
 export function createLivingDocsMiddleware(options: LivingDocsOptions): Router {
   const router = Router()
   const appDir = resolve(currentDir, '../app')
+  const includeBundled = options.includeBundledDocs !== false
+  const bundledDocsPath = includeBundled ? getBundledDocsPath() : null
+  const extraPaths = bundledDocsPath ? [bundledDocsPath] : []
 
-  // Dynamic index — scans docs directory on each request
+  // Dynamic index — scans docs directory on each request, merging bundled docs
   router.get('/api/docs-index.json', (_req, res) => {
     try {
-      const index = buildIndex(options.docsPath)
+      const index = buildIndex(options.docsPath, extraPaths)
       res.json(index)
     } catch (e) {
       res.status(500).json({ error: 'Falha ao gerar indice', detail: String(e) })
@@ -170,7 +204,16 @@ export function createLivingDocsMiddleware(options: LivingDocsOptions): Router {
   router.get('/api/*', (req, res, next) => {
     const subPath = req.path.replace('/api', '')
     if (!subPath.endsWith('.json') || !DOC_DIRS.test(subPath)) return next()
-    const filePath = join(options.docsPath, subPath)
+
+    // Try project docs first, then fallback to bundled docs
+    let filePath = join(options.docsPath, subPath)
+    if (!existsSync(filePath) && bundledDocsPath) {
+      const bundledFile = join(bundledDocsPath, subPath)
+      if (existsSync(bundledFile)) {
+        filePath = bundledFile
+      }
+    }
+
     try {
       const raw = readFileSync(filePath, 'utf-8')
       const doc = JSON.parse(raw)

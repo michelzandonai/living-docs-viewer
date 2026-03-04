@@ -280,6 +280,78 @@ describe('generateDocsIndex', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Suite: Bundled docs merge (extraDocsPaths)
+// ---------------------------------------------------------------------------
+
+describe('generateDocsIndex com bundled docs (extraDocsPaths)', () => {
+  let docsPath: string
+  let adrDir: string
+  let bundledPath: string
+
+  beforeEach(() => {
+    const dirs = setupDocsDir()
+    docsPath = dirs.docsPath
+    adrDir = dirs.adrDir
+
+    // Create a fake bundled docs directory
+    bundledPath = mkdtempSync(join(tmpdir(), 'living-docs-bundled-'))
+    const bundledGuidelines = join(bundledPath, 'guidelines')
+    mkdirSync(bundledGuidelines, { recursive: true })
+    createFakeDoc(bundledGuidelines, 'GUIDELINE-001-living-docs-guide.json', {
+      id: 'GUIDELINE-001',
+      title: 'Guia Unificado Living Docs',
+      status: 'accepted',
+    })
+  })
+
+  afterEach(() => {
+    rmSync(docsPath, { recursive: true, force: true })
+    rmSync(bundledPath, { recursive: true, force: true })
+  })
+
+  it('bundled docs aparecem no index quando nao ha override local', async () => {
+    createFakeDoc(adrDir, 'ADR-001.json', { id: 'ADR-001' })
+
+    const count = await generateDocsIndex(docsPath, [bundledPath])
+
+    expect(count).toBe(2)
+    const index = JSON.parse(readFileSync(join(docsPath, 'docs-index.json'), 'utf-8'))
+    const ids = index.documents.map((d: { id: string }) => d.id)
+    expect(ids).toContain('ADR-001')
+    expect(ids).toContain('GUIDELINE-001')
+  })
+
+  it('override local vence sobre bundled doc com mesmo id', async () => {
+    // Create local guideline with same ID but different title
+    const localGuidelines = join(docsPath, 'guidelines')
+    mkdirSync(localGuidelines, { recursive: true })
+    createFakeDoc(localGuidelines, 'GUIDELINE-001-living-docs-guide.json', {
+      id: 'GUIDELINE-001',
+      title: 'Versao Local Customizada',
+      status: 'accepted',
+    })
+
+    const count = await generateDocsIndex(docsPath, [bundledPath])
+
+    expect(count).toBe(1)
+    const index = JSON.parse(readFileSync(join(docsPath, 'docs-index.json'), 'utf-8'))
+    const guideline = index.documents.find((d: { id: string }) => d.id === 'GUIDELINE-001')
+    expect(guideline.title).toBe('Versao Local Customizada')
+  })
+
+  it('sem extraDocsPaths, bundled docs nao aparecem', async () => {
+    createFakeDoc(adrDir, 'ADR-001.json', { id: 'ADR-001' })
+
+    const count = await generateDocsIndex(docsPath)
+
+    expect(count).toBe(1)
+    const index = JSON.parse(readFileSync(join(docsPath, 'docs-index.json'), 'utf-8'))
+    const ids = index.documents.map((d: { id: string }) => d.id)
+    expect(ids).not.toContain('GUIDELINE-001')
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Suite 2: createLivingDocsMiddleware com temp dirs isolados
 // ---------------------------------------------------------------------------
 
@@ -324,8 +396,22 @@ function getMaxMtimeLocal(docsPath: string): number {
   return maxMtime
 }
 
-function createTestMiddleware(options: LivingDocsOptions, appDir: string): Router {
+function deriveType(relPath: string): string | null {
+  const first = relPath.split('/')[0]
+  const map: Record<string, string> = {
+    adr: 'adr', prd: 'prd', planning: 'planning', tasks: 'task', guidelines: 'guideline',
+  }
+  return map[first] ?? null
+}
+
+interface CreateTestMiddlewareOpts extends LivingDocsOptions {
+  bundledDocsPath?: string | null
+}
+
+function createTestMiddleware(options: CreateTestMiddlewareOpts, appDir: string): Router {
   const router = Router()
+  const bundledDocsPath = options.bundledDocsPath ?? null
+  const extraPaths = bundledDocsPath ? [bundledDocsPath] : []
 
   let cachedIndex: string | null = null
   let cachedMaxMtime = 0
@@ -335,7 +421,7 @@ function createTestMiddleware(options: LivingDocsOptions, appDir: string): Route
       const currentMaxMtime = getMaxMtimeLocal(options.docsPath)
 
       if (cachedIndex === null || currentMaxMtime !== cachedMaxMtime) {
-        await generateDocsIndex(options.docsPath)
+        await generateDocsIndex(options.docsPath, extraPaths)
         const indexPath = join(options.docsPath, 'docs-index.json')
         cachedIndex = readFileSync(indexPath, 'utf8')
         cachedMaxMtime = getMaxMtimeLocal(options.docsPath)
@@ -348,6 +434,31 @@ function createTestMiddleware(options: LivingDocsOptions, appDir: string): Route
       console.warn(`[living-docs] Error serving index: ${msg}`)
       res.status(500).json({ error: 'Failed to generate docs index' })
     }
+  })
+
+  // Enrich documents with derived fields + bundled fallback
+  const DOC_DIRS = /^\/(adr|prd|planning|tasks|guidelines)\//
+  router.get('/api/{*path}', (req, res, next) => {
+    const subPath = req.path.replace('/api', '')
+    if (!subPath.endsWith('.json') || !DOC_DIRS.test(subPath)) return next()
+
+    let filePath = join(options.docsPath, subPath)
+    if (!existsSync(filePath) && bundledDocsPath) {
+      const bundledFile = join(bundledDocsPath, subPath)
+      if (existsSync(bundledFile)) {
+        filePath = bundledFile
+      }
+    }
+
+    try {
+      const doc = JSON.parse(readFileSync(filePath, 'utf-8'))
+      if (doc.id && doc.metadata) {
+        if (!doc.$docSchema) doc.$docSchema = 'energimap-doc/v1'
+        if (!doc.type) doc.type = deriveType(subPath.slice(1))
+        if (!Array.isArray(doc.sections)) doc.sections = []
+      }
+      res.json(doc)
+    } catch { next() }
   })
 
   router.use('/api', expressStatic(options.docsPath, { index: false }))
@@ -503,5 +614,62 @@ describe('createLivingDocsMiddleware (isolado com temp dirs)', () => {
     const body2 = JSON.parse(res2.text)
 
     expect(body2.stats.total).toBe(2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Suite: Middleware com bundled docs fallback
+// ---------------------------------------------------------------------------
+
+describe('Middleware com bundled docs fallback', () => {
+  let docsPath: string
+  let adrDir: string
+  let appDir: string
+  let bundledPath: string
+  let app: express.Express
+
+  beforeEach(() => {
+    const dirs = setupDocsDir()
+    docsPath = dirs.docsPath
+    adrDir = dirs.adrDir
+    appDir = setupAppDir()
+
+    // Create bundled docs
+    bundledPath = mkdtempSync(join(tmpdir(), 'living-docs-bundled-mw-'))
+    const bundledGuidelines = join(bundledPath, 'guidelines')
+    mkdirSync(bundledGuidelines, { recursive: true })
+    createFakeDoc(bundledGuidelines, 'GUIDELINE-001-living-docs-guide.json', {
+      id: 'GUIDELINE-001',
+      type: 'guideline',
+      title: 'Guia Bundled',
+      status: 'accepted',
+    })
+
+    app = express()
+    app.use(
+      '/docs',
+      createTestMiddleware(
+        { docsPath, title: 'Test', basePath: '/docs', bundledDocsPath: bundledPath },
+        appDir
+      )
+    )
+  })
+
+  afterEach(() => {
+    rmSync(docsPath, { recursive: true, force: true })
+    rmSync(appDir, { recursive: true, force: true })
+    rmSync(bundledPath, { recursive: true, force: true })
+  })
+
+  it('rota /api/guidelines/GUIDELINE-001*.json serve bundled doc como fallback', async () => {
+    const res = await request(app).get(
+      '/docs/api/guidelines/GUIDELINE-001-living-docs-guide.json'
+    )
+
+    expect(res.status).toBe(200)
+    const body = JSON.parse(res.text)
+    expect(body.id).toBe('GUIDELINE-001')
+    expect(body.$docSchema).toBe('energimap-doc/v1')
+    expect(body.type).toBe('guideline')
   })
 })

@@ -1,0 +1,240 @@
+{
+  "id": "GUIDELINE-001",
+  "metadata": {
+    "title": "Guia Unificado Living Docs",
+    "status": "accepted",
+    "dateCreated": "2026-03-03T00:00:00",
+    "dateModified": "2026-03-04T15:10:00",
+    "authorIds": ["claude"],
+    "scope": "cross-project",
+    "summary": "Guideline unificada para criacao e manutencao de documentos Living Docs em todos os projetos."
+  },
+  "sections": [
+    {
+      "title": "Visao Geral",
+      "content": "Formato canonico: JSON. Schema: `energimap-doc/v1` — metadata, secoes, referencias, tabelas, diagramas.\n\n### Tipos Suportados\n\n| Tipo | Prefixo | Descricao |\n|---|---|---|\n| ADR | ADR-NNN | Decisoes tecnicas |\n| PRD | PRD-nome | Requisitos de produto |\n| Guideline | GUIDELINE-NNN | Guia/padrao obrigatorio |\n| Task | TASK-NNN | Registro de implementacao |\n| Planning | PLAN-NNN | Plano de implementacao |\n\n### Convencoes Gerais\n\n- Titulos em portugues (termos tecnicos em ingles permitidos)\n- `sections[].content` usa Markdown\n- Um arquivo `.json` por documento\n- Nunca duplicar informacao entre documentos — usar `references[]`\n- Navegacao por pastas no filesystem — sem docs-index.json"
+    },
+    {
+      "title": "Estrutura de um Documento",
+      "content": "### Campos Obrigatorios\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `id` | string | Ex: `ADR-038`, `GUIDELINE-001` |\n| `metadata` | object | Metadados (ver abaixo) |\n| `sections` | array | Conteudo do documento |\n\n### Campos Derivaveis (NAO incluir)\n\n| Campo | Motivo |\n|---|---|\n| `$docSchema` | Implicito — todo JSON em docs/ segue energimap-doc/v1 |\n| `type` | Derivavel do path (adr/ = adr, prd/ = prd, guidelines/ = guideline) |\n| `section.id` | Auto-gerado como kebab-case do titulo |\n| `metadata.scope` | Omitir quando derivavel do path (adr/api/ = api, adr/frontend/ = frontend) |\n\n### Metadata Obrigatoria\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `title` | string | Max 35 chars, baseado no conteudo concreto |\n| `status` | string | `proposed`, `accepted`, `deprecated`, `superseded` |\n| `dateCreated` | string | `YYYY-MM-DDTHH:mm:ss` |\n| `dateModified` | string | `YYYY-MM-DDTHH:mm:ss` — SEMPRE incluir |\n| `authorIds` | array | IDs conforme `_catalogs/authors.json` |\n\n### Metadata Opcional\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `scope` | enum | `shared`, `api`, `frontend`, `mobile`, `cross-project` |\n| `tagIds` | array | Conforme `_catalogs/tags.json` |\n| `summary` | string | Resumo curto |\n| `supersedes` | string | ID do documento substituido |\n| `supersededBy` | string | ID do substituto |\n| `draft` | boolean | Rascunho (default: false) |\n\n### Campos Opcionais (omitir se vazios)\n\n`references`, `tables`, `diagrams`, `changelog`"
+    },
+    {
+      "title": "Catalogos e Referencias",
+      "content": "Catalogos centralizados garantem consistencia.\n\n### Autores (`_catalogs/authors.json`)\n\nCada projeto mantem seu catalogo. Formato padrao:\n\n- `michel` — Michel Zandonai (Tech Lead)\n- `claude` — Claude + Michel (AI-Assisted)\n- `team` — {Projeto} Team (Engineering)\n\nAdicionar novo autor no catalogo ANTES de usa-lo.\n\n### Tags (`_catalogs/tags.json`)\n\nTags organizadas por categoria: domain, architecture, platform, pattern, quality.\n\nAdicionar nova tag no catalogo ANTES de usa-la.\n\n### Referencias Cruzadas (`references[]`)\n\n- `targetId` — ID do documento alvo\n- `type` — `references`, `supersedes`, `superseded_by`, `depends_on`, `implements`, `related`, `external`\n- `description` — Descricao opcional"
+    },
+    {
+      "title": "Passo a Passo para Criar um Documento",
+      "content": "### 1. Escolher o Tipo\n\n- **ADR** — decisao tecnica (por que)\n- **PRD** — requisitos de produto (o que)\n- **Guideline** — guia/padrao obrigatorio (como)\n- **Task** — registro de implementacao\n- **Planning** — plano de implementacao\n\n### 2. Definir o ID\n\n- ADRs: `ADR-NNN` (sequencial global)\n- PRDs: `PRD-nome` (kebab-case)\n- Planning: `PLAN-NNN` (sequencial)\n- Guidelines: `GUIDELINE-NNN` (sequencial)\n- Tasks: `TASK-NNN` (sequencial)\n\n### 3. Criar o Arquivo JSON\n\n| Tipo | Pasta | Exemplo |\n|---|---|---|\n| ADR | `adr/{scope}/` | `adr/shared/ADR-039.json` |\n| PRD | `prd/` | `prd/authentication.json` |\n| Planning | `planning/` | `planning/PLAN-001-descricao.json` |\n| Guideline | `guidelines/` | `guidelines/GUIDELINE-004.json` |\n| Task | `tasks/` | `tasks/TASK-001.json` |\n\n### 4. Preencher Campos Obrigatorios\n\n```json\n{\n  \"id\": \"<ID>\",\n  \"metadata\": {\n    \"title\": \"Conteudo Concreto Max 35 chars\",\n    \"status\": \"proposed\",\n    \"dateCreated\": \"2026-03-03T14:30:00\",\n    \"dateModified\": \"2026-03-03T14:30:00\",\n    \"authorIds\": [\"<autor-id>\"]\n  },\n  \"sections\": [\n    {\n      \"title\": \"Titulo da Secao\",\n      \"content\": \"Conteudo em Markdown...\"\n    }\n  ]\n}\n```\n\nNAO incluir: `$docSchema`, `type`, `section.id` (todos derivaveis).\n\n### 5. Campos Especificos do Tipo\n\nVer secao \"Campos Especificos por Tipo\".\n\n### 6. Referencias Cruzadas\n\nAdicionar em `references[]` se houver.\n\n### 7. Validar\n\n- JSON valido (sem trailing commas)\n- `authorIds` existem em `_catalogs/authors.json`\n- `tagIds` existem em `_catalogs/tags.json`"
+    },
+    {
+      "title": "Campos Especificos por Tipo",
+      "content": "### ADR (`adr`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `context` | string | Contexto/problema |\n| `decision` | string | Decisao tomada |\n| `consequences` | object | `positive[]`, `negative[]`, `mitigations[]` |\n| `alternatives` | array | Alternativas consideradas |\n| `invariants` | array | Regras inviolaveis |\n| `principles` | array | Principios guia |\n| `phases` | array | Fases (id, title, description, items) |\n\n### PRD (`prd`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `version` | string | Versao |\n| `personas` | array | Personas |\n| `scope` | object | Escopo |\n| `functionalRequirements` | array | Requisitos funcionais |\n| `businessRules` | array | Regras de negocio |\n| `apiSpecification` | object | Spec de API |\n| `metrics` | array | Metricas de sucesso |\n| `useCases` | array | Casos de uso |\n\n### Planning (`planning`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `goal` | string | Objetivo em 1 frase |\n| `context` | object | Contexto estruturado (opcional) |\n| `phases` | array | **Formato preferido.** Agrupamento por fase: `{title, rationale?, items[]}` |\n| `items` | array | Formato flat (backward compat): `{t,d,s,why?}[]` |\n| `risks` | array | `{r,m}[]` — r=risco, m=mitigacao |\n| `files` | array | Paths dos arquivos impactados |\n| `verify` | array | Passos de verificacao |\n\n**Formato `phases` (preferido):**\n\n```json\n\"phases\": [\n  {\n    \"title\": \"Nome da Fase\",\n    \"rationale\": \"Porque esta fase existe\",\n    \"items\": [\n      { \"t\": \"Titulo\", \"d\": \"Descricao com **markdown**\", \"s\": \"p\", \"why\": \"Rationale conciso\" }\n    ]\n  }\n]\n```\n\n- `phases[].title` — nome da fase\n- `phases[].rationale` — porque esta fase existe (opcional)\n- `phases[].items[]` — mesma estrutura de items flat\n- `items[].why` — rationale conciso da decisao (opcional, aparece italic abaixo do titulo)\n- `items[].d` — suporta markdown basico: `**bold**`, `` `code` ``, `- bullets`, `\\n` line breaks\n- Se `phases` existe, `items` flat e ignorado\n- `items` flat mantido para backward compat\n\n### Formatacao de items[].d em Planning\n\nCada item DEVE seguir esta estrutura no campo `d` (description):\n\n1. **Primeira linha**: frase curta resumindo o que sera feito (sem bullet)\n2. **Linha em branco** (`\\n\\n`) separando do detalhamento\n3. **Topicos com bullets markdown** (`- **Label:** valor`) organizando os detalhes\n4. Sub-bullets com `  - ` (2 espacos) para listas dentro de um topico\n\n**Exemplo bem formatado:**\n\n```json\n{\n  \"t\": \"Criar hook useDigitalInvoiceBanner\",\n  \"d\": \"Centraliza toda logica de exibicao do modal.\\n\\n- **Elegibilidade:** verifica UC elegivel\\n  - TPEN_TIPO_ENTREGA !== 'EMAI'\\n  - SIUC_SIT_UC === 'NORM'\\n- **Dismiss:** localStorage com expiracao 30 dias\\n- **Config:** fetch do banco via useQuery (staleTime 1h)\\n- **Retorna:** isOpen, config, onAdhere, onDismiss30Days\",\n  \"s\": \"p\"\n}\n```\n\n**Anti-patterns:**\n- Descricao em paragrafo corrido sem bullets\n- Numerar com (1), (2), (3) em vez de bullets markdown\n- Misturar multiplos conceitos em uma mesma linha |\n\n### Guideline (`guideline`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `appliesTo` | array | Contextos aplicaveis |\n| `rules` | array | Regras obrigatorias |\n| `checklist` | array | Verificacao |\n| `antiPatterns` | array | Padroes a evitar |\n\n### Task (`task`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `problem` | string | Problema/solicitacao |\n| `solution` | string | Solucao implementada |\n| `modifiedFiles` | array | Arquivos alterados |\n| `testsPerformed` | array | Testes realizados |"
+    },
+    {
+      "title": "Padrao de ADRs",
+      "content": "### Numeracao\n\n- Sequencial global, unica entre todas as pastas\n- NUNCA reutilizar numero entre `api/`, `frontend/`, `shared/`, `mobile/`\n- Sufixos permitidos para desambiguacao: `-frontend`, `-v2`\n\n### Pastas\n\n| Pasta | Escopo |\n|---|---|\n| `adr/api/` | Decisoes exclusivas do backend |\n| `adr/frontend/` | Decisoes exclusivas do frontend |\n| `adr/shared/` | Decisoes cross-project |\n| `adr/mobile/` | Decisoes exclusivas do mobile |\n| `adr/_deprecated/` | ADRs obsoletos (triple signal) |\n\n### Tamanho\n\nRecomendado: ate ~5KB por ADR. Se maior, condensar ou dividir.\n\n### Conteudo Obrigatorio\n\n`context` + `decision` + `consequences`\n\n### Conteudo Opcional\n\n`alternatives`, `invariants`, `principles`, `phases` — exemplos: max 1 por conceito.\n\n### Deprecated / Superseded\n\nTriple signal: mover para `_deprecated/`, renomear com prefixo `DEPRECATED_`, marcar `metadata.status` como `deprecated` ou `superseded`."
+    },
+    {
+      "title": "Padrao de Nomenclatura PRD",
+      "content": "### Nome do Arquivo\n\nKebab-case minusculo, extensao `.json`, sem prefixo `PRD-`.\n\n| Correto | Incorreto |\n|---|---|\n| `authentication.json` | `PRD-authentication.json` |\n| `material-crud.json` | `Material-CRUD.json` |\n\n### ID do Documento\n\nFormato: `PRD-{nome-do-arquivo-sem-extensao}`.\n\n| Arquivo | ID |\n|---|---|\n| `authentication.json` | `PRD-authentication` |\n| `material-crud.json` | `PRD-material-crud` |\n\n### Status Validos\n\n`planned` | `in_development` | `implemented` | `deprecated`\n\n### Diretorio\n\n`docs/prd/` — unico local, sem subpastas."
+    },
+    {
+      "title": "Padrao de Tabs Universal",
+      "content": "Todo documento DEVE mapear conteudo nas 5 tabs universais.\n\n### Tabs\n\n| Tab | Descricao |\n|---|---|\n| **Resumo** | Visao geral, contexto, decisao principal |\n| **Analise** | Detalhamento tecnico, consequencias, alternativas |\n| **Implementacao** | Passo a passo, convencoes, checklist |\n| **Dados** | Tabelas, metricas, campos estruturados |\n| **Conexoes** | Referencias cruzadas, diagramas, historico |\n\n### Mapeamento por Tipo\n\n| Tab | ADR | Guideline | PRD | Task |\n|---|---|---|---|---|\n| Resumo | context + decision | visao-geral + appliesTo | version + personas + scope | problem + requirements |\n| Analise | consequences + alternatives + principles | rules + antiPatterns | businessRules + useCases | solution |\n| Implementacao | phases + invariants | checklist + passo-a-passo | functionalRequirements + apiSpec | progress + modifiedFiles |\n| Dados | tables + campos especificos | tables | metrics + tables | testsPerformed + tables |\n| Conexoes | references + diagrams + changelog | references + diagrams + changelog | references + diagrams + changelog | references + diagrams + changelog |\n\n### Regras\n\n- 5 tabs obrigatorias — tabs vazias exibem indicacao visual\n- Sections mapeiam automaticamente via `id` e `type`\n- Novo tipo de documento deve definir mapeamento antes da publicacao"
+    },
+    {
+      "title": "Diagramas JSON (ReactFlow)",
+      "content": "Diagramas DEVEM usar formato JSON com estrutura ReactFlow. NAO usar Mermaid.\n\n### Estrutura\n\n```json\n{\n  \"diagrams\": [\n    {\n      \"id\": \"diagram-id\",\n      \"type\": \"reactflow\",\n      \"title\": \"Titulo do Diagrama\",\n      \"nodes\": [\n        {\n          \"id\": \"1\",\n          \"type\": \"default\",\n          \"position\": { \"x\": 0, \"y\": 0 },\n          \"data\": { \"label\": \"Texto\" },\n          \"style\": { \"background\": \"#3b82f6\", \"color\": \"#fff\" }\n        }\n      ],\n      \"edges\": [\n        {\n          \"id\": \"e1-2\",\n          \"source\": \"1\",\n          \"target\": \"2\",\n          \"label\": \"transicao\"\n        }\n      ]\n    }\n  ]\n}\n```\n\n### Paleta de Cores Padronizada\n\n| Elemento | Cor | Background | Border |\n|---|---|---|---|\n| Estado do workflow | Azul | `#3b82f6` | — |\n| Variable calculada | Roxo | `#ede9fe` | `#7c3aed` |\n| Condition (decisao) | Amarelo | `#fef3c7` | `#d97706` |\n| Acao bloqueante | Vermelho | `#fef2f2` | `#dc2626` |\n| Acao liberante | Verde | `#f0fdf4` | `#16a34a` |\n| Campos de entrada | Cinza | `#f1f5f9` | `#94a3b8` |\n\n### Tipos de Node\n\n- `default` — retangulo padrao\n- `input` — node inicial (sem entrada)\n- `output` — node final (sem saida)\n\n### Regras\n\n- Sempre incluir `position` com coordenadas x, y\n- Sempre incluir `data.label` com texto descritivo\n- Usar `style` para aplicar paleta de cores\n- Edges devem ter `source` e `target` validos"
+    },
+    {
+      "title": "Deprecated Isolation",
+      "content": "Documentos deprecated/superseded DEVEM ser isolados com triple signal:\n\n1. **Pasta**: mover para `_deprecated/`\n2. **Prefixo**: renomear arquivo com `DEPRECATED_`\n3. **Status**: marcar `metadata.status` como `deprecated` ou `superseded`\n\n### Regras\n\n- IA deve ignorar docs deprecated por padrao\n- Buscar apenas em documentos com `status: accepted` ou `proposed`\n- Triple signal garante isolamento visual, programatico e por filesystem"
+    },
+    {
+      "title": "Regras de Atualizacao",
+      "content": "### OBRIGATORIO ao modificar qualquer documento\n\n1. Atualizar `metadata.dateModified` com data/hora atual\n2. Adicionar entrada no `changelog` descrevendo a alteracao\n\n### Formato de Datas\n\nSEMPRE usar `YYYY-MM-DDTHH:mm:ss` (ISO com hora, minuto e segundo).\n\nAplica-se a:\n- `metadata.dateCreated`\n- `metadata.dateModified`\n- `changelog[].date`\n\n### Exemplo\n\n```json\n\"metadata\": {\n  \"dateCreated\": \"2026-03-03T14:30:00\",\n  \"dateModified\": \"2026-03-03T16:45:00\"\n},\n\"changelog\": [\n  {\n    \"date\": \"2026-03-03T16:45:00\",\n    \"description\": \"Adicionada secao X\"\n  }\n]\n```\n\n### Criacao de Documento\n\n- `dateCreated` e `dateModified` com mesmo valor\n- `changelog` com entrada de criacao"
+    },
+    {
+      "title": "Escrita Concisa",
+      "content": "Regra principal: **mesma informacao, menos caracteres**.\n\n### Regras\n\n- Cada frase: uma ideia\n- Preferir listas a paragrafos\n- Tabelas para dados estruturados\n- Eliminar redundancias (\"ou seja\", \"trata-se de\", \"e um\", \"por exemplo\")\n- Eliminar adjetivos desnecessarios\n- Eliminar frases introdutorias (\"O objetivo desta secao e...\", \"A seguir vamos...\")\n\n### Exemplos\n\n| Antes | Depois |\n|---|---|\n| O sistema Living Docs usa JSON como formato canonico para toda documentacao tecnica. | Formato canonico: JSON. |\n| Cada documento segue o schema energimap-doc/v1, que define uma estrutura padronizada. | Schema: `energimap-doc/v1`. |\n| O sistema utiliza o padrao X para realizar Y | Padrao X para Y |\n| Este documento descreve as regras e convencoes para criacao de documentos | Regras e convencoes de criacao |"
+    }
+  ],
+  "guideline": {
+    "appliesTo": ["shared", "api", "frontend", "mobile", "cross-project"],
+    "rules": [
+      {
+        "id": "schema",
+        "description": "Todo documento segue schema `energimap-doc/v1` (implicito — NAO incluir campo $docSchema no JSON).",
+        "whenApplies": "Criacao e edicao de qualquer documento"
+      },
+      {
+        "id": "titulos-portugues",
+        "description": "Titulos em portugues. Termos tecnicos em ingles permitidos (\"Registry Pattern\", \"JSONB\", \"JWT\").",
+        "whenApplies": "Campo metadata.title de qualquer documento"
+      },
+      {
+        "id": "titulo-baseado-em-conteudo",
+        "description": "Titulo DEVE refletir o conteudo concreto do documento, NAO o topico generico. Max 35 caracteres. Regras por tipo: ADR = o que foi decidido. PRD = o que e entregue. Guideline = regras prescritas. Task = o que foi feito. Planning = o que sera implementado. PROIBIDO: prefixos genericos ('Sistema de', 'Gestao de', 'Arquitetura de'), parenteses explicativos longos.",
+        "whenApplies": "Campo metadata.title de qualquer documento"
+      },
+      {
+        "id": "catalogos-primeiro",
+        "description": "authorIds e tagIds devem existir nos catalogos antes do uso.",
+        "whenApplies": "Toda referencia a autores ou tags"
+      },
+      {
+        "id": "um-por-arquivo",
+        "description": "Um documento por arquivo JSON.",
+        "whenApplies": "Sempre"
+      },
+      {
+        "id": "changelog-obrigatorio",
+        "description": "Changelog registra toda alteracao. Obrigatorio em criacao (entrada inicial) e em toda modificacao.",
+        "whenApplies": "Criacao e modificacao de qualquer documento"
+      },
+      {
+        "id": "conciseness",
+        "description": "Escreva o minimo necessario. Mesma informacao, menos caracteres. Em items de Planning, usar bullets markdown para organizar detalhes — nunca paragrafos corridos.",
+        "whenApplies": "Todo conteudo em sections[].content e planning items[].d"
+      },
+      {
+        "id": "tabs-pattern",
+        "description": "Todo documento mapeia conteudo nas 5 tabs universais: Resumo, Analise, Implementacao, Dados, Conexoes.",
+        "whenApplies": "Publicacao de qualquer documento"
+      },
+      {
+        "id": "deprecated-isolation",
+        "description": "Documentos deprecated/superseded isolados com triple signal: pasta _deprecated/, prefixo DEPRECATED_ no arquivo, metadata.status deprecated/superseded.",
+        "whenApplies": "Ao deprecar um documento"
+      },
+      {
+        "id": "padrao-adr",
+        "description": "ADRs: numeracao sequencial global unica entre pastas. Pastas: api/, frontend/, shared/, mobile/. Tamanho: ate ~5KB. Obrigatorio: context + decision + consequences. Deprecated: triple signal.",
+        "whenApplies": "Criacao e manutencao de qualquer ADR"
+      },
+      {
+        "id": "prd-naming",
+        "description": "Arquivo PRD: kebab-case minusculo, sem prefixo `PRD-`, extensao `.json`. ID: `PRD-{nome-do-arquivo-sem-extensao}`.",
+        "whenApplies": "Criacao de qualquer PRD"
+      },
+      {
+        "id": "prd-schema",
+        "description": "PRD segue schema energimap-doc/v1. Status validos: `planned`, `in_development`, `implemented`, `deprecated`. Diretorio: `docs/prd/` (sem subpastas).",
+        "whenApplies": "Criacao e edicao de PRDs"
+      },
+      {
+        "id": "merge-rule",
+        "description": "Documentos com mesmo aggregate root + >50% overlap de conteudo DEVEM ser mesclados em 1 doc.",
+        "whenApplies": "Criacao de novos docs e auditorias periodicas"
+      },
+      {
+        "id": "anti-duplication",
+        "description": "NUNCA repetir informacao entre documentos. Se doc A precisa referenciar conteudo de doc B, usar `references[]` com targetId.",
+        "whenApplies": "Todo conteudo em sections e campos especificos"
+      },
+      {
+        "id": "classification",
+        "description": "ADR = decisoes arquiteturais (por que). PRD = requisitos e endpoints (o que). Guideline = regras operacionais prescritas (como) — DEVE ter rules[]. Planning = planos de implementacao. Task = registro de execucao.",
+        "whenApplies": "Criacao e auditoria de documentos"
+      },
+      {
+        "id": "schema-optimized",
+        "description": "Omitir campos derivaveis: $docSchema (implicito), type (derivavel do path), section.id (kebab do titulo), scope (quando == subpasta). Omitir arrays vazios.",
+        "whenApplies": "Todo JSON em docs/"
+      },
+      {
+        "id": "date-tracking",
+        "description": "SEMPRE incluir `metadata.dateModified` com data/hora atual (formato `YYYY-MM-DDTHH:mm:ss`). Obrigatorio mesmo na criacao (igual a dateCreated).",
+        "whenApplies": "Criacao e modificacao de qualquer documento"
+      },
+      {
+        "id": "condensation",
+        "description": "Sections que duplicam conteudo de outros docs devem ser removidas e substituidas por references[]. Max ~5KB por ADR.",
+        "whenApplies": "Auditorias periodicas e revisao de docs existentes"
+      },
+      {
+        "id": "diagramas-json",
+        "description": "Diagramas DEVEM usar formato JSON ReactFlow (nodes + edges). NAO usar Mermaid. Paleta de cores padronizada: azul (#3b82f6) estados, roxo (#ede9fe) variables, amarelo (#fef3c7) conditions, vermelho (#fef2f2) bloqueio, verde (#f0fdf4) ok.",
+        "whenApplies": "Todo diagrama em qualquer documento"
+      },
+      {
+        "id": "navegacao-filesystem",
+        "description": "Navegacao por pastas no filesystem. NAO manter ou editar docs-index.json. Living Docs Viewer escaneia pastas automaticamente.",
+        "whenApplies": "Organizacao e publicacao de documentos"
+      },
+      {
+        "id": "numeracao-dinamica",
+        "description": "Contagens de documentos (stats, totais) sao baseadas em arquivos reais no filesystem. Nunca manter contadores manuais.",
+        "whenApplies": "Estatisticas e referencias a quantidade de documentos"
+      },
+      {
+        "id": "planning-items-format",
+        "description": "Planning items[].d DEVE seguir: primeira linha = resumo curto (sem bullet), linha em branco, topicos com bullets markdown (- **Label:** valor). Sub-bullets com 2 espacos. NUNCA paragrafo corrido ou numeracao (1), (2), (3).",
+        "whenApplies": "Criacao e edicao de documentos Planning"
+      }
+    ],
+    "checklist": [
+      "ID conforme convencao do tipo",
+      "Metadata completa (title, status, dateCreated, authorIds)",
+      "dateCreated em formato YYYY-MM-DDTHH:mm:ss",
+      "dateModified SEMPRE incluido (YYYY-MM-DDTHH:mm:ss)",
+      "Changelog atualizado com entrada descrevendo a alteracao",
+      "Campos derivaveis OMITIDOS ($docSchema, type, section.id, scope derivavel)",
+      "Arrays vazios OMITIDOS",
+      "authorIds validados em _catalogs/authors.json",
+      "tagIds validados em _catalogs/tags.json",
+      "Campos especificos do tipo preenchidos",
+      "JSON valido",
+      "Conteudo conciso",
+      "Anti-duplicacao verificada",
+      "Merge verificado (novo doc nao tem >50% overlap)",
+      "Deprecated: triple signal se aplicavel",
+      "ADR: numero unico global",
+      "ADR: pasta correta conforme escopo",
+      "ADR: campos obrigatorios (context, decision, consequences)",
+      "ADR: tamanho ~5KB",
+      "PRD: arquivo kebab-case sem prefixo PRD-",
+      "Titulo: max 35 chars, conteudo concreto",
+      "Planning items[].d: primeira linha resumo + bullets markdown para detalhes"
+    ],
+    "antiPatterns": [
+      "Incluir $docSchema, type ou section.id no JSON",
+      "Omitir dateModified de documento modificado",
+      "Formato de data sem hora (YYYY-MM-DD em vez de YYYY-MM-DDTHH:mm:ss)",
+      "Incluir arrays vazios",
+      "Duplicar informacao entre documentos",
+      "Criar doc com >50% overlap de existente",
+      "Classificar doc no tipo errado",
+      "Multiplos documentos em um arquivo",
+      "Paragrafos longos onde listas bastam",
+      "Doc deprecated sem triple signal",
+      "ADR com numero duplicado entre pastas",
+      "ADR sem context, decision ou consequences",
+      "ADR acima de ~5KB sem condensar",
+      "PRD com prefixo PRD- no nome do arquivo",
+      "Titulo generico sem refletir conteudo",
+      "Titulo com prefixos desnecessarios (\"Sistema de\", \"Gestao de\")",
+      "Titulo com mais de 35 caracteres",
+      "Usar Mermaid em vez de JSON para diagramas",
+      "Manter ou editar docs-index.json",
+      "Modificar doc sem adicionar changelog",
+      "Planning item com descricao em paragrafo corrido sem bullets",
+      "Planning item com numeracao (1), (2), (3) em vez de bullets markdown",
+      "Planning item misturando multiplos conceitos em uma mesma linha"
+    ]
+  },
+  "changelog": [
+    {
+      "date": "2026-03-03T00:00:00",
+      "description": "Criacao da guideline unificada Living Docs. 12 sections, 21 rules, 21 checklist, 20 antiPatterns. Consolidacao dos 5 projetos (ajuri-api, agencia-api, talentos, energimap, indica-api)."
+    },
+    {
+      "date": "2026-03-03T23:00:00",
+      "description": "Documentado formato phases para Planning: agrupamento por fase com title, rationale e items. Campo why opcional em items. Campo d suporta markdown basico. living-docs-viewer 0.3.0."
+    },
+    {
+      "date": "2026-03-04T15:10:00",
+      "description": "Adicionada regra de formatacao para Planning items[].d: primeira linha resumo + bullets markdown para detalhes. Nova rule planning-items-format, checklist item, 3 anti-patterns."
+    }
+  ]
+}
