@@ -1,5 +1,12 @@
+import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import {
   CheckCircle2,
+  Circle,
+  CircleDot,
+  ChevronRight,
   FileCode,
   ListChecks,
   Wrench,
@@ -8,6 +15,13 @@ import {
   Tag,
 } from 'lucide-react';
 import type { DocTask, DocTaskFix, DocTaskRegressionTests, DocTaskLinks } from '@/lib/types';
+
+const PROSE_CLASSES = [
+  'prose prose-sm dark:prose-invert max-w-none',
+  'prose-pre:rounded-lg prose-pre:border prose-pre:border-zinc-200 dark:prose-pre:border-zinc-700 prose-pre:shadow-sm',
+  'prose-code:bg-zinc-100 dark:prose-code:bg-zinc-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-sm prose-code:before:content-none prose-code:after:content-none',
+  'prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline',
+].join(' ');
 
 const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
   root_cause: {
@@ -36,12 +50,113 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
   },
 };
 
+// --- Fix status icon ---
+
+function FixStatusIcon({ status }: { status?: DocTaskFix['status'] }) {
+  switch (status) {
+    case 'in_progress':
+      return <CircleDot className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />;
+    case 'completed':
+      return <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-500" />;
+    case 'pending':
+    default:
+      return <Circle className="h-4 w-4 mt-0.5 shrink-0 text-zinc-400" />;
+  }
+}
+
+// --- Fix status badge (small, for card headers) ---
+
+const FIX_STATUS_BADGE: Record<string, { label: string; color: string }> = {
+  pending: {
+    label: 'Pendente',
+    color: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
+  },
+  in_progress: {
+    label: 'Em andamento',
+    color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  },
+  completed: {
+    label: 'Concluido',
+    color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  },
+};
+
+// --- File badge parser ---
+
+function parseFileBadge(filePath: string): { path: string; badge?: { label: string; color: string } } {
+  if (filePath.includes('(NOVO)')) {
+    return {
+      path: filePath.replace('(NOVO)', '').trim(),
+      badge: { label: 'NEW', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
+    };
+  }
+  if (filePath.includes('(MODIFICA)') || filePath.includes('(reescrito)')) {
+    return {
+      path: filePath.replace('(MODIFICA)', '').replace('(reescrito)', '').trim(),
+      badge: { label: 'MOD', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+    };
+  }
+  if (filePath.includes('(NAO MUDA)')) {
+    return {
+      path: filePath.replace('(NAO MUDA)', '').trim(),
+      badge: { label: 'REF', color: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400' },
+    };
+  }
+  return { path: filePath };
+}
+
+// --- Collapsible section ---
+
+function CollapsibleSection({
+  title,
+  defaultOpen,
+  children,
+}: {
+  title: string;
+  defaultOpen: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors w-full text-left py-1"
+      >
+        <ChevronRight
+          className={`h-3.5 w-3.5 shrink-0 transition-transform duration-150 ${open ? 'rotate-90' : ''}`}
+        />
+        {title}
+      </button>
+      {open && <div className="mt-1 pl-5">{children}</div>}
+    </div>
+  );
+}
+
+// --- Task status labels ---
+
+function getTaskLabels(task: DocTask) {
+  const status = task.metadata?.status;
+  const isCompleted = status === 'completed';
+  const total = Array.isArray(task.fixes) ? task.fixes.length : 0;
+
+  return {
+    summaryText: isCompleted
+      ? `${total} ${total === 1 ? 'entrega realizada' : 'entregas realizadas'}`
+      : `${total} ${total === 1 ? 'etapa planejada/em andamento' : 'etapas planejadas/em andamento'}`,
+    headerLabel: isCompleted ? 'O QUE FOI FEITO' : 'O QUE SERA FEITO',
+  };
+}
+
 // --- TaskOverview (Tab Resumo) ---
 
 export function TaskOverview({ task }: { task: DocTask }) {
   const fixes = Array.isArray(task.fixes) ? task.fixes : [];
   const context = task.context;
   const total = fixes.length;
+  const { summaryText, headerLabel } = getTaskLabels(task);
 
   return (
     <div className="space-y-4">
@@ -68,40 +183,43 @@ export function TaskOverview({ task }: { task: DocTask }) {
       {total > 0 && (
         <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
           <Wrench className="h-4 w-4" />
-          <span>
-            {total} {total === 1 ? 'fix aplicado' : 'fixes aplicados'}
-          </span>
+          <span>{summaryText}</span>
         </div>
       )}
 
       {/* Fixes summary list */}
       {fixes.length > 0 && (
-        <ul className="space-y-1.5">
-          {fixes.map((fix) => {
-            const cat = fix.category ? CATEGORY_CONFIG[fix.category] : undefined;
-            return (
-              <li key={fix.id} className="flex items-start gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-emerald-500" />
-                <div className="flex-1 min-w-0">
-                  <span className="text-zinc-800 dark:text-zinc-100">
-                    <span className="text-zinc-400 mr-1">#{fix.id}</span>
-                    {fix.title}
-                  </span>
-                  {cat && (
-                    <span
-                      className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${cat.color}`}
-                    >
-                      {cat.label}
+        <div className="space-y-1.5">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            {headerLabel}
+          </h4>
+          <ul className="space-y-1.5">
+            {fixes.map((fix) => {
+              const cat = fix.category ? CATEGORY_CONFIG[fix.category] : undefined;
+              return (
+                <li key={fix.id} className="flex items-start gap-2 text-sm">
+                  <FixStatusIcon status={fix.status} />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-zinc-800 dark:text-zinc-100">
+                      <span className="text-zinc-400 mr-1">#{fix.id}</span>
+                      {fix.title}
                     </span>
-                  )}
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {fix.description}
-                  </p>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                    {cat && (
+                      <span
+                        className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${cat.color}`}
+                      >
+                        {cat.label}
+                      </span>
+                    )}
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      {fix.description}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
 
       {/* Impacted steps */}
@@ -137,78 +255,101 @@ export function TaskFixes({ fixes }: { fixes: DocTaskFix[] }) {
 
   return (
     <div className="space-y-4">
-      {fixes.map((fix) => {
-        const cat = fix.category ? CATEGORY_CONFIG[fix.category] : undefined;
-        return (
-          <div
-            key={fix.id}
-            className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden"
-          >
-            {/* Header */}
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-700">
-              <span className="text-xs font-mono text-zinc-400">#{fix.id}</span>
-              <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
-                {fix.title}
-              </span>
-              {cat && (
-                <span
-                  className={`ml-auto inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${cat.color}`}
-                >
-                  <Tag className="h-2.5 w-2.5 mr-0.5" />
-                  {cat.label}
-                </span>
-              )}
-            </div>
+      {fixes.map((fix) => (
+        <FixCard key={fix.id} fix={fix} />
+      ))}
+    </div>
+  );
+}
 
-            <div className="p-4 space-y-3 bg-white dark:bg-zinc-900">
-              {/* Description */}
-              <div>
-                <h5 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-                  O que foi feito
-                </h5>
-                <p className="text-sm text-zinc-700 dark:text-zinc-200">{fix.description}</p>
-              </div>
+// --- FixCard (collapsible card per fix) ---
 
-              {/* Logic */}
-              {fix.logic && (
-                <div>
-                  <h5 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-                    Como funciona
-                  </h5>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-300">{fix.logic}</p>
-                </div>
-              )}
+function FixCard({ fix }: { fix: DocTaskFix }) {
+  const cat = fix.category ? CATEGORY_CONFIG[fix.category] : undefined;
+  const statusBadge = fix.status ? FIX_STATUS_BADGE[fix.status] : undefined;
+  const hasLogic = !!fix.logic;
+  const hasFiles = fix.files.length > 0;
 
-              {/* Files */}
-              {fix.files.length > 0 && (
-                <div>
-                  <h5 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-                    Arquivos
-                  </h5>
-                  <ul className="space-y-0.5">
-                    {fix.files.map((f, i) => (
-                      <li
-                        key={i}
-                        className="text-xs font-mono text-zinc-500 dark:text-zinc-400"
-                      >
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+  return (
+    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-700">
+        <FixStatusIcon status={fix.status} />
+        <span className="text-xs font-mono text-zinc-400">#{fix.id}</span>
+        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
+          {fix.title}
+        </span>
+        <div className="ml-auto flex items-center gap-1.5">
+          {statusBadge && (
+            <span
+              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${statusBadge.color}`}
+            >
+              {statusBadge.label}
+            </span>
+          )}
+          {cat && (
+            <span
+              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${cat.color}`}
+            >
+              <Tag className="h-2.5 w-2.5 mr-0.5" />
+              {cat.label}
+            </span>
+          )}
+        </div>
+      </div>
 
-              {/* Test file */}
-              {fix.testFile && (
-                <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
-                  <TestTube2 className="h-3 w-3" />
-                  <span className="font-mono">{fix.testFile}</span>
-                </div>
-              )}
-            </div>
+      <div className="p-4 space-y-3 bg-white dark:bg-zinc-900">
+        {/* Description - open by default */}
+        <CollapsibleSection title="Descricao" defaultOpen={true}>
+          <div className={PROSE_CLASSES}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+              {fix.description}
+            </ReactMarkdown>
           </div>
-        );
-      })}
+        </CollapsibleSection>
+
+        {/* Logic - closed by default */}
+        {hasLogic && (
+          <CollapsibleSection title="Como funciona" defaultOpen={false}>
+            <div className={PROSE_CLASSES}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                {fix.logic!}
+              </ReactMarkdown>
+            </div>
+          </CollapsibleSection>
+        )}
+
+        {/* Files - closed by default */}
+        {hasFiles && (
+          <CollapsibleSection title="Arquivos" defaultOpen={false}>
+            <ul className="space-y-1">
+              {fix.files.map((f, i) => {
+                const { path, badge } = parseFileBadge(f);
+                return (
+                  <li key={i} className="flex items-center gap-2 text-xs">
+                    <span className="font-mono text-zinc-500 dark:text-zinc-400">{path}</span>
+                    {badge && (
+                      <span
+                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badge.color}`}
+                      >
+                        {badge.label}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </CollapsibleSection>
+        )}
+
+        {/* Test file */}
+        {fix.testFile && (
+          <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+            <TestTube2 className="h-3 w-3" />
+            <span className="font-mono">{fix.testFile}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -238,14 +379,21 @@ export function TaskTechnical({ task }: { task: DocTask }) {
             Arquivos Modificados ({files.length})
           </h3>
           <ul className="space-y-0.5">
-            {files.map((f, i) => (
-              <li
-                key={i}
-                className="text-sm font-mono text-zinc-600 dark:text-zinc-300 pl-6"
-              >
-                {f}
-              </li>
-            ))}
+            {files.map((f, i) => {
+              const { path, badge } = parseFileBadge(f);
+              return (
+                <li key={i} className="flex items-center gap-2 text-sm pl-6">
+                  <span className="font-mono text-zinc-600 dark:text-zinc-300">{path}</span>
+                  {badge && (
+                    <span
+                      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badge.color}`}
+                    >
+                      {badge.label}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

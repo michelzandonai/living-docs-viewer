@@ -15,6 +15,7 @@ export function DocsViewer({
 }: DocsViewerProps) {
   const setApiUrl = useDocsStore((s) => s.setApiUrl)
   const loadIndex = useDocsStore((s) => s.loadIndex)
+  const selectDoc = useDocsStore((s) => s.selectDoc)
   const index = useDocsStore((s) => s.index)
   const loading = useDocsStore((s) => s.loading)
   const error = useDocsStore((s) => s.error)
@@ -44,6 +45,26 @@ export function DocsViewer({
     setApiUrl(apiUrl)
     loadIndex(apiUrl)
   }, [apiUrl, setApiUrl, loadIndex])
+
+  // Sync URL hash with doc selection
+  useEffect(() => {
+    if (!index) return
+
+    const hash = window.location.hash.slice(1)
+    if (hash) {
+      selectDoc(hash)
+    }
+
+    const onHashChange = () => {
+      const newHash = window.location.hash.slice(1)
+      if (newHash) {
+        selectDoc(newHash)
+      }
+    }
+
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [index, selectDoc])
 
   const themeClass = currentTheme === 'dark' ? 'dark' : ''
 

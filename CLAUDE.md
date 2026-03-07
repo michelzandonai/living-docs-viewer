@@ -6,7 +6,7 @@ Biblioteca React + Express para visualizar documentos Living Docs (`energimap-do
 Renderiza JSONs como SPA interativa com sidebar, busca, tabs e diagramas ReactFlow.
 
 - **Repo**: github:michelzandonai/living-docs-viewer
-- **Versao**: 0.5.0
+- **Versao**: 0.5.1
 - **Consumidores**: agencia-api, energy-map-api, talentos, ajuri-api, indica-api
 
 ## Comandos

@@ -487,6 +487,7 @@ declare interface DocTaskFix {
     files: string[];
     testFile?: string;
     referencePattern?: string;
+    status?: 'pending' | 'in_progress' | 'completed';
 }
 
 declare interface DocTaskLinks {

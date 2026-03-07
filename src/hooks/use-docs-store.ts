@@ -117,6 +117,10 @@ export const useDocsStore: UseBoundStore<StoreApi<DocsState>> = create<DocsState
         state.currentDocId = docId
       })
 
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', '#' + docId)
+      }
+
       try {
         const res = await fetch(`${apiUrl}/${entry.path}`)
         if (!res.ok) throw new Error(`Falha ao carregar documento: ${res.status}`)

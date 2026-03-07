@@ -238,7 +238,7 @@ function DocDetailContent({ doc, catalogs, index }: DocDetailContentProps) {
     task?.fixes && task.fixes.length > 0
       ? {
           id: 'fixes',
-          label: 'Fixes',
+          label: task.metadata.status === 'completed' ? 'Entregas' : 'Etapas',
           icon: <Wrench className="h-4 w-4" />,
           badge: String(task.fixes.length),
           content: () => <TaskFixes fixes={task.fixes!} />,
