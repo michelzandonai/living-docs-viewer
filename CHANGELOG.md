@@ -7,6 +7,8 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-03-07
+
 ### Tests
 
 - 39 testes de componentes React (FixStatusIcon, CollapsibleSection, FixCard com markdown + expansao, TaskOverview com links, URL hash sync)
@@ -75,7 +77,8 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - Tratar appliesTo como string ou array no guideline detail
 - Enriquecer documentos com campos derivados no serve
 
-[Unreleased]: https://github.com/michelzandonai/living-docs-viewer/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/michelzandonai/living-docs-viewer/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/michelzandonai/living-docs-viewer/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/michelzandonai/living-docs-viewer/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/michelzandonai/living-docs-viewer/compare/v0.4.4...v0.5.0
 [0.4.4]: https://github.com/michelzandonai/living-docs-viewer/compare/v0.4.3...v0.4.4
