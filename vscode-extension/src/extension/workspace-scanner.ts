@@ -69,8 +69,15 @@ export async function scanWorkspaceForDocs(docsFolder: vscode.Uri): Promise<Docs
       const text = decoder.decode(content)
       const doc = JSON.parse(text)
 
-      if (doc.$docSchema !== 'energimap-doc/v1') continue
-      if (!doc.id || !doc.type || !doc.metadata) continue
+      const isEnergiMap = doc.$docSchema === 'energimap-doc/v1' || (doc.metadata && doc.sections)
+      if (!isEnergiMap) continue
+
+      // Derive type from path if not present
+      const relToDocsFolder = fileUri.fsPath.slice(docsFolder.fsPath.length + 1)
+      const topFolder = relToDocsFolder.split('/')[0]?.replace(/s$/, '') // adr/, prd/, guidelines/ -> adr, prd, guideline
+      const docType = doc.type || topFolder || 'unknown'
+
+      if (!doc.id || !doc.metadata) continue
 
       const relativePath = vscode.workspace.asRelativePath(fileUri, false)
       // Calculate path relative to docs folder
@@ -82,7 +89,7 @@ export async function scanWorkspaceForDocs(docsFolder: vscode.Uri): Promise<Docs
 
       const entry: DocsIndexEntry = {
         id: doc.id,
-        type: doc.type,
+        type: docType,
         title: doc.metadata.title || doc.id,
         status: doc.metadata.status || 'draft',
         scope: doc.metadata.scope || 'shared',
@@ -110,7 +117,7 @@ export async function scanWorkspaceForDocs(docsFolder: vscode.Uri): Promise<Docs
       // Build graph
       graphNodes.push({
         id: doc.id,
-        type: doc.type,
+        type: docType,
         scope: entry.scope,
         status: entry.status,
       })

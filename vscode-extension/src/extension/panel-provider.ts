@@ -178,7 +178,7 @@ export class LivingDocsPanelManager {
       const content = await vscode.workspace.fs.readFile(files[0])
       const text = new TextDecoder().decode(content)
       const doc = JSON.parse(text)
-      return doc.$docSchema === 'energimap-doc/v1'
+      return doc.$docSchema === 'energimap-doc/v1' || (doc.metadata && doc.sections)
     } catch {
       return false
     }
