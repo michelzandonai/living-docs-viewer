@@ -78,6 +78,16 @@ function isTask(doc: Doc): doc is DocTask {
   return doc.type === 'task' && ('fixes' in doc || 'context' in doc)
 }
 
+// --- Task tab helpers ---
+
+export function getFixesTabLabel(status: string): string {
+  return status === 'completed' ? 'Entregas' : 'Etapas'
+}
+
+export function shouldShowFixesTab(fixes?: unknown[]): boolean {
+  return !!fixes && fixes.length > 0
+}
+
 // --- Main component ---
 
 export function DocDetail() {
@@ -238,7 +248,7 @@ function DocDetailContent({ doc, catalogs, index }: DocDetailContentProps) {
     task?.fixes && task.fixes.length > 0
       ? {
           id: 'fixes',
-          label: task.metadata.status === 'completed' ? 'Entregas' : 'Etapas',
+          label: getFixesTabLabel(task.metadata.status),
           icon: <Wrench className="h-4 w-4" />,
           badge: String(task.fixes.length),
           content: () => <TaskFixes fixes={task.fixes!} />,

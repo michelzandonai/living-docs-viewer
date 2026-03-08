@@ -52,7 +52,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
 
 // --- Fix status icon ---
 
-function FixStatusIcon({ status }: { status?: DocTaskFix['status'] }) {
+export function FixStatusIcon({ status }: { status?: DocTaskFix['status'] }) {
   switch (status) {
     case 'in_progress':
       return <CircleDot className="h-4 w-4 mt-0.5 shrink-0 text-amber-500" />;
@@ -83,7 +83,7 @@ const FIX_STATUS_BADGE: Record<string, { label: string; color: string }> = {
 
 // --- File badge parser ---
 
-function parseFileBadge(filePath: string): { path: string; badge?: { label: string; color: string } } {
+export function parseFileBadge(filePath: string): { path: string; badge?: { label: string; color: string } } {
   if (filePath.includes('(NOVO)')) {
     return {
       path: filePath.replace('(NOVO)', '').trim(),
@@ -107,7 +107,7 @@ function parseFileBadge(filePath: string): { path: string; badge?: { label: stri
 
 // --- Collapsible section ---
 
-function CollapsibleSection({
+export function CollapsibleSection({
   title,
   defaultOpen,
   children,
@@ -137,7 +137,7 @@ function CollapsibleSection({
 
 // --- Task status labels ---
 
-function getTaskLabels(task: DocTask) {
+export function getTaskLabels(task: DocTask) {
   const status = task.metadata?.status;
   const isCompleted = status === 'completed';
   const total = Array.isArray(task.fixes) ? task.fixes.length : 0;
@@ -264,7 +264,7 @@ export function TaskFixes({ fixes }: { fixes: DocTaskFix[] }) {
 
 // --- FixCard (collapsible card per fix) ---
 
-function FixCard({ fix }: { fix: DocTaskFix }) {
+export function FixCard({ fix }: { fix: DocTaskFix }) {
   const cat = fix.category ? CATEGORY_CONFIG[fix.category] : undefined;
   const statusBadge = fix.status ? FIX_STATUS_BADGE[fix.status] : undefined;
   const hasLogic = !!fix.logic;

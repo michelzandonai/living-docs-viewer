@@ -7,6 +7,11 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Tests
+
+- 39 testes de componentes React (FixStatusIcon, CollapsibleSection, FixCard com markdown + expansao, TaskOverview com links, URL hash sync)
+- 30 testes de logica pura (parseFileBadge com assertions exatas, getTaskLabels com edge cases, URL sync com erro fetch, tab labels importados do source)
+
 ## [0.5.1] - 2026-03-07
 
 ### Added
