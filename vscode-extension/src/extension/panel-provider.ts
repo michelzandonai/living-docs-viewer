@@ -173,12 +173,22 @@ export class LivingDocsPanelManager {
       const stat = await vscode.workspace.fs.stat(docsUri)
       if (stat.type !== vscode.FileType.Directory) return false
       const pattern = new vscode.RelativePattern(docsUri, '**/*.json')
-      const files = await vscode.workspace.findFiles(pattern, '**/node_modules/**', 1)
+      const excludes = '{**/node_modules/**,**/_catalogs/**,**/_schema/**,**/_skill/**}'
+      const files = await vscode.workspace.findFiles(pattern, excludes, 10)
       if (files.length === 0) return false
-      const content = await vscode.workspace.fs.readFile(files[0])
-      const text = new TextDecoder().decode(content)
-      const doc = JSON.parse(text)
-      return doc.$docSchema === 'energimap-doc/v1' || (doc.metadata && doc.sections)
+      for (const file of files) {
+        try {
+          const content = await vscode.workspace.fs.readFile(file)
+          const text = new TextDecoder().decode(content)
+          const doc = JSON.parse(text)
+          if (doc.$docSchema === 'energimap-doc/v1' || (doc.metadata && doc.sections)) {
+            return true
+          }
+        } catch {
+          continue
+        }
+      }
+      return false
     } catch {
       return false
     }

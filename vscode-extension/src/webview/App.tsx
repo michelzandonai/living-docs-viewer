@@ -88,7 +88,7 @@ export function App() {
               </div>
               <h2 className="text-xl font-semibold mb-2">Pasta de documentacao nao encontrada</h2>
               <p className="text-zinc-500 dark:text-zinc-400 mb-6">
-                Nenhuma pasta com documentos <code className="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-sm">energimap-doc/v1</code> foi detectada automaticamente neste workspace.
+                Nenhuma pasta com documentos Living Docs foi detectada automaticamente neste workspace.
               </p>
               <button
                 onClick={() => vscodeApi.postMessage({ type: 'selectFolder' })}

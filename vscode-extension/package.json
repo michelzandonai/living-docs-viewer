@@ -2,7 +2,7 @@
   "name": "living-docs-viewer-vscode",
   "displayName": "Living Docs Viewer",
   "description": "Visualize energimap-doc/v1 JSON files inside VS Code",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "michelzandonai",
   "license": "MIT",
   "repository": {

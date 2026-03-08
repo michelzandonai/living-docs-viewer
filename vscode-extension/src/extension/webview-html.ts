@@ -14,6 +14,7 @@ export function getWebviewHtml(
   )
 
   const nonce = getNonce()
+  const cacheBust = Date.now()
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -27,12 +28,12 @@ export function getWebviewHtml(
     img-src ${webview.cspSource} https: data:;
     font-src ${webview.cspSource};
   ">
-  <link rel="stylesheet" href="${styleUri}">
+  <link rel="stylesheet" href="${styleUri}?v=${cacheBust}">
   <title>Living Docs Viewer</title>
 </head>
 <body>
   <div id="root"></div>
-  <script nonce="${nonce}" src="${scriptUri}" type="module"></script>
+  <script nonce="${nonce}" src="${scriptUri}?v=${cacheBust}" type="module"></script>
 </body>
 </html>`
 }
