@@ -66,8 +66,13 @@ export interface RequestCatalogsMessage {
   type: 'requestCatalogs'
 }
 
+export interface SelectFolderMessage {
+  type: 'selectFolder'
+}
+
 export type WebviewToExtensionMessage =
   | ReadyMessage
   | RequestIndexMessage
   | SelectDocMessage
   | RequestCatalogsMessage
+  | SelectFolderMessage

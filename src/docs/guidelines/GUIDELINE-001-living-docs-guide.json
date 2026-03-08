@@ -4,8 +4,10 @@
     "title": "Guia Unificado Living Docs",
     "status": "accepted",
     "dateCreated": "2026-03-03T00:00:00",
-    "dateModified": "2026-03-07T21:55:00",
-    "authorIds": ["claude"],
+    "dateModified": "2026-03-08T14:55:00",
+    "authorIds": [
+      "claude"
+    ],
     "scope": "cross-project",
     "summary": "Guideline unificada para criacao e manutencao de documentos Living Docs em todos os projetos."
   },
@@ -28,11 +30,11 @@
     },
     {
       "title": "Campos Especificos por Tipo",
-      "content": "### ADR (`adr`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `context` | string | Contexto/problema |\n| `decision` | string | Decisao tomada |\n| `consequences` | object | `positive[]`, `negative[]`, `mitigations[]` |\n| `alternatives` | array | Alternativas consideradas |\n| `invariants` | array | Regras inviolaveis |\n| `principles` | array | Principios guia |\n| `phases` | array | Fases (id, title, description, items) |\n\n### PRD (`prd`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `version` | string | Versao |\n| `personas` | array | Personas |\n| `scope` | object | Escopo |\n| `functionalRequirements` | array | Requisitos funcionais |\n| `businessRules` | array | Regras de negocio |\n| `apiSpecification` | object | Spec de API |\n| `metrics` | array | Metricas de sucesso |\n| `useCases` | array | Casos de uso |\n\n### Planning (`planning`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `goal` | string | Objetivo em 1 frase |\n| `context` | object | Contexto estruturado (opcional) |\n| `phases` | array | **Formato preferido.** Agrupamento por fase: `{title, rationale?, items[]}` |\n| `items` | array | Formato flat (backward compat): `{t,d,s,why?}[]` |\n| `risks` | array | `{r,m}[]` — r=risco, m=mitigacao |\n| `files` | array | Paths dos arquivos impactados |\n| `verify` | array | Passos de verificacao |\n\n**Formato `phases` (preferido):**\n\n```json\n\"phases\": [\n  {\n    \"title\": \"Nome da Fase\",\n    \"rationale\": \"Porque esta fase existe\",\n    \"items\": [\n      { \"t\": \"Titulo\", \"d\": \"Descricao com **markdown**\", \"s\": \"p\", \"why\": \"Rationale conciso\" }\n    ]\n  }\n]\n```\n\n- `phases[].title` — nome da fase\n- `phases[].rationale` — porque esta fase existe (opcional)\n- `phases[].items[]` — mesma estrutura de items flat\n- `items[].why` — rationale conciso da decisao (opcional, aparece italic abaixo do titulo)\n- `items[].d` — suporta markdown basico: `**bold**`, `` `code` ``, `- bullets`, `\\n` line breaks\n- Se `phases` existe, `items` flat e ignorado\n- `items` flat mantido para backward compat\n\n### Formatacao de items[].d em Planning\n\nCada item DEVE seguir esta estrutura no campo `d` (description):\n\n1. **Primeira linha**: frase curta resumindo o que sera feito (sem bullet)\n2. **Linha em branco** (`\\n\\n`) separando do detalhamento\n3. **Topicos com bullets markdown** (`- **Label:** valor`) organizando os detalhes\n4. Sub-bullets com `  - ` (2 espacos) para listas dentro de um topico\n\n**Exemplo bem formatado:**\n\n```json\n{\n  \"t\": \"Criar hook useDigitalInvoiceBanner\",\n  \"d\": \"Centraliza toda logica de exibicao do modal.\\n\\n- **Elegibilidade:** verifica UC elegivel\\n  - TPEN_TIPO_ENTREGA !== 'EMAI'\\n  - SIUC_SIT_UC === 'NORM'\\n- **Dismiss:** localStorage com expiracao 30 dias\\n- **Config:** fetch do banco via useQuery (staleTime 1h)\\n- **Retorna:** isOpen, config, onAdhere, onDismiss30Days\",\n  \"s\": \"p\"\n}\n```\n\n**Anti-patterns:**\n- Descricao em paragrafo corrido sem bullets\n- Numerar com (1), (2), (3) em vez de bullets markdown\n- Misturar multiplos conceitos em uma mesma linha |\n\n### Guideline (`guideline`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `appliesTo` | array | Contextos aplicaveis |\n| `rules` | array | Regras obrigatorias |\n| `checklist` | array | Verificacao |\n| `antiPatterns` | array | Padroes a evitar |\n\n### Task (`task`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `context.problem` | string | Problema/solicitacao |\n| `context.rootCause` | string | Causa raiz |\n| `fixes` | array | Etapas/entregas (ver abaixo) |\n| `allFilesModified` | array | Todos os arquivos alterados |\n| `verify` | array | Passos de verificacao |\n| `regressionTests` | object | Testes de regressao |\n| `links` | object | Vinculos (plan, successor, adrs) |\n\n#### Estrutura de `fixes[]`\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `id` | number | Numero sequencial |\n| `title` | string | Titulo da etapa |\n| `category` | string | Categoria (root_cause, defensive, api_mapping, ui, bug_fix) |\n| `description` | string | Descricao — suporta **Markdown** (bullets, bold, code, headers) |\n| `logic` | string | Como funciona — suporta **Markdown** |\n| `files` | array | Paths com badges: `(NOVO)` = novo arquivo, `(MODIFICA)` = alterado, `(NAO MUDA)` = referencia |\n| `status` | string | Opcional: `pending`, `in_progress`, `completed` — tracking de progresso visual |\n| `testFile` | string | Arquivo de teste associado |\n\n#### Renderizacao dinamica\n\n| Status da Task | Tab label | Header nos fixes |\n|---|---|---|\n| pending/in_progress | Etapas (N) | O QUE SERA FEITO |\n| completed | Entregas (N) | O QUE FOI FEITO |"
+      "content": "### ADR (`adr`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `context` | string | Contexto/problema |\n| `decision` | string | Decisao tomada |\n| `consequences` | object | `positive[]`, `negative[]`, `mitigations[]` |\n| `alternatives` | array | **Obrigatorio.** Alternativas avaliadas: `{option, pros[], cons[], chosen?}` |\n| `deciders` | array | Quem participou da decisao (authorIds) |\n| `invariants` | array | Regras inviolaveis |\n| `principles` | array | Principios guia |\n| `phases` | array | Fases (id, title, description, items) |\n\n### PRD (`prd`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `problemStatement` | string | **Obrigatorio.** Problema que o PRD resolve |\n| `version` | string | Versao |\n| `personas` | array | Personas |\n| `scope` | object | Escopo |\n| `functionalRequirements` | array | Requisitos funcionais |\n| `businessRules` | array | Regras de negocio |\n| `apiSpecification` | object | Spec de API |\n| `metrics` | array | Metricas de sucesso |\n| `useCases` | array | Casos de uso |\n| `risks` | array | Riscos: `{risk, mitigation}` |\n| `assumptions` | array | Premissas assumidas |\n\n### Planning (`planning`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `goal` | string | Objetivo em 1 frase |\n| `context` | object | Contexto estruturado (opcional) |\n| `phases` | array | **Formato preferido.** Agrupamento por fase: `{title, rationale?, items[]}` |\n| `items` | array | Formato flat (backward compat): `{t,d,s,why?}[]` |\n| `risks` | array | `{r,m}[]` — r=risco, m=mitigacao |\n| `files` | array | Paths dos arquivos impactados |\n| `verify` | array | Passos de verificacao |\n\n**Formato `phases` (preferido):**\n\n```json\n\"phases\": [\n  {\n    \"title\": \"Nome da Fase\",\n    \"rationale\": \"Porque esta fase existe\",\n    \"items\": [\n      { \"t\": \"Titulo\", \"d\": \"Descricao com **markdown**\", \"s\": \"p\", \"why\": \"Rationale conciso\" }\n    ]\n  }\n]\n```\n\n- `phases[].title` — nome da fase\n- `phases[].rationale` — porque esta fase existe (opcional)\n- `phases[].items[]` — mesma estrutura de items flat\n- `items[].why` — rationale conciso da decisao (opcional, aparece italic abaixo do titulo)\n- `items[].d` — suporta markdown basico: `**bold**`, `` `code` ``, `- bullets`, `\\n` line breaks\n- Se `phases` existe, `items` flat e ignorado\n- `items` flat mantido para backward compat\n\n### Formatacao de items[].d em Planning\n\nCada item DEVE seguir esta estrutura no campo `d` (description):\n\n1. **Primeira linha**: frase curta resumindo o que sera feito (sem bullet)\n2. **Linha em branco** (`\\n\\n`) separando do detalhamento\n3. **Topicos com bullets markdown** (`- **Label:** valor`) organizando os detalhes\n4. Sub-bullets com `  - ` (2 espacos) para listas dentro de um topico\n\n**Exemplo bem formatado:**\n\n```json\n{\n  \"t\": \"Criar hook useDigitalInvoiceBanner\",\n  \"d\": \"Centraliza toda logica de exibicao do modal.\\n\\n- **Elegibilidade:** verifica UC elegivel\\n  - TPEN_TIPO_ENTREGA !== 'EMAI'\\n  - SIUC_SIT_UC === 'NORM'\\n- **Dismiss:** localStorage com expiracao 30 dias\\n- **Config:** fetch do banco via useQuery (staleTime 1h)\\n- **Retorna:** isOpen, config, onAdhere, onDismiss30Days\",\n  \"s\": \"p\"\n}\n```\n\n**Anti-patterns:**\n- Descricao em paragrafo corrido sem bullets\n- Numerar com (1), (2), (3) em vez de bullets markdown\n- Misturar multiplos conceitos em uma mesma linha |\n\n### Guideline (`guideline`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `appliesTo` | array | Contextos aplicaveis |\n| `rules` | array | Regras obrigatorias |\n| `checklist` | array | Verificacao |\n| `antiPatterns` | array | Padroes a evitar |\n\n### Task (`task`)\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `context.problem` | string | Problema/solicitacao |\n| `context.rootCause` | string | Causa raiz |\n| `fixes` | array | Etapas/entregas (ver abaixo) |\n| `allFilesModified` | array | Todos os arquivos alterados |\n| `verify` | array | Passos de verificacao |\n| `regressionTests` | object | Testes de regressao |\n| `links` | object | Vinculos (plan, successor, adrs) |\n\n#### Estrutura de `fixes[]`\n\n| Campo | Tipo | Descricao |\n|---|---|---|\n| `id` | number | Numero sequencial |\n| `title` | string | Titulo da etapa |\n| `category` | string | Categoria (root_cause, defensive, api_mapping, ui, bug_fix) |\n| `description` | string | Descricao — suporta **Markdown** (bullets, bold, code, headers) |\n| `logic` | string | Como funciona — suporta **Markdown** |\n| `files` | array | Paths com badges: `(NOVO)` = novo arquivo, `(MODIFICA)` = alterado, `(NAO MUDA)` = referencia |\n| `status` | string | Opcional: `pending`, `in_progress`, `completed` — tracking de progresso visual |\n| `testFile` | string | Arquivo de teste associado |\n\n#### Renderizacao dinamica\n\n| Status da Task | Tab label | Header nos fixes |\n|---|---|---|\n| pending/in_progress | Etapas (N) | O QUE SERA FEITO |\n| completed | Entregas (N) | O QUE FOI FEITO |"
     },
     {
       "title": "Padrao de ADRs",
-      "content": "### Numeracao\n\n- Sequencial global, unica entre todas as pastas\n- NUNCA reutilizar numero entre `api/`, `frontend/`, `shared/`, `mobile/`\n- Sufixos permitidos para desambiguacao: `-frontend`, `-v2`\n\n### Pastas\n\n| Pasta | Escopo |\n|---|---|\n| `adr/api/` | Decisoes exclusivas do backend |\n| `adr/frontend/` | Decisoes exclusivas do frontend |\n| `adr/shared/` | Decisoes cross-project |\n| `adr/mobile/` | Decisoes exclusivas do mobile |\n| `adr/_deprecated/` | ADRs obsoletos (triple signal) |\n\n### Tamanho\n\nRecomendado: ate ~5KB por ADR. Se maior, condensar ou dividir.\n\n### Conteudo Obrigatorio\n\n`context` + `decision` + `consequences`\n\n### Conteudo Opcional\n\n`alternatives`, `invariants`, `principles`, `phases` — exemplos: max 1 por conceito.\n\n### Deprecated / Superseded\n\nTriple signal: mover para `_deprecated/`, renomear com prefixo `DEPRECATED_`, marcar `metadata.status` como `deprecated` ou `superseded`."
+      "content": "### Numeracao\n\n- Sequencial global, unica entre todas as pastas\n- NUNCA reutilizar numero entre `api/`, `frontend/`, `shared/`, `mobile/`\n- Sufixos permitidos para desambiguacao: `-frontend`, `-v2`\n\n### Pastas\n\n| Pasta | Escopo |\n|---|---|\n| `adr/api/` | Decisoes exclusivas do backend |\n| `adr/frontend/` | Decisoes exclusivas do frontend |\n| `adr/shared/` | Decisoes cross-project |\n| `adr/mobile/` | Decisoes exclusivas do mobile |\n| `adr/_deprecated/` | ADRs obsoletos (triple signal) |\n\n### Tamanho\n\nRecomendado: ate ~5KB por ADR. Se maior, condensar ou dividir.\n\n### Conteudo Obrigatorio\n\n`context` + `decision` + `consequences` + `alternatives`\n\nCada alternativa DEVE ter pros e cons. Formato: `{option, pros[], cons[], chosen?}`.\n\n### Conteudo Opcional\n\n`deciders`, `invariants`, `principles`, `phases` — exemplos: max 1 por conceito.\n\n### Deprecated / Superseded\n\nTriple signal: mover para `_deprecated/`, renomear com prefixo `DEPRECATED_`, marcar `metadata.status` como `deprecated` ou `superseded`."
     },
     {
       "title": "Padrao de Nomenclatura PRD",
@@ -60,7 +62,13 @@
     }
   ],
   "guideline": {
-    "appliesTo": ["shared", "api", "frontend", "mobile", "cross-project"],
+    "appliesTo": [
+      "shared",
+      "api",
+      "frontend",
+      "mobile",
+      "cross-project"
+    ],
     "rules": [
       {
         "id": "schema",
@@ -109,7 +117,7 @@
       },
       {
         "id": "padrao-adr",
-        "description": "ADRs: numeracao sequencial global unica entre pastas. Pastas: api/, frontend/, shared/, mobile/. Tamanho: ate ~5KB. Obrigatorio: context + decision + consequences. Deprecated: triple signal.",
+        "description": "ADRs: numeracao sequencial global unica entre pastas. Pastas: api/, frontend/, shared/, mobile/. Tamanho: ate ~5KB. Obrigatorio: context + decision + consequences + alternatives. Deprecated: triple signal.",
         "whenApplies": "Criacao e manutencao de qualquer ADR"
       },
       {
@@ -171,6 +179,21 @@
         "id": "planning-items-format",
         "description": "Planning items[].d DEVE seguir: primeira linha = resumo curto (sem bullet), linha em branco, topicos com bullets markdown (- **Label:** valor). Sub-bullets com 2 espacos. NUNCA paragrafo corrido ou numeracao (1), (2), (3).",
         "whenApplies": "Criacao e edicao de documentos Planning"
+      },
+      {
+        "id": "adr-alternatives-required",
+        "description": "ADR DEVE ter alternatives[] com pros/cons por alternativa. Formato: {option, pros[], cons[], chosen?}. Sem alternativas, ADR vira registro — perde valor.",
+        "whenApplies": "Criacao e edicao de qualquer ADR"
+      },
+      {
+        "id": "prd-problem-statement",
+        "description": "PRD DEVE ter problemStatement definindo o problema antes dos requisitos. Sem problema claro, PRD nasce como spec tecnica.",
+        "whenApplies": "Criacao e edicao de qualquer PRD"
+      },
+      {
+        "id": "prd-risks-assumptions",
+        "description": "PRD DEVE incluir risks[{risk,mitigation}] e assumptions[] quando aplicavel. Torna explicito o que pode dar errado e o que assumimos como verdade.",
+        "whenApplies": "Criacao e edicao de qualquer PRD"
       }
     ],
     "checklist": [
@@ -195,7 +218,10 @@
       "ADR: tamanho ~5KB",
       "PRD: arquivo kebab-case sem prefixo PRD-",
       "Titulo: max 35 chars, conteudo concreto",
-      "Planning items[].d: primeira linha resumo + bullets markdown para detalhes"
+      "Planning items[].d: primeira linha resumo + bullets markdown para detalhes",
+      "ADR: alternatives[] com pros/cons preenchidos",
+      "PRD: problemStatement definido",
+      "PRD: risks e assumptions documentados"
     ],
     "antiPatterns": [
       "Incluir $docSchema, type ou section.id no JSON",
@@ -220,7 +246,11 @@
       "Modificar doc sem adicionar changelog",
       "Planning item com descricao em paragrafo corrido sem bullets",
       "Planning item com numeracao (1), (2), (3) em vez de bullets markdown",
-      "Planning item misturando multiplos conceitos em uma mesma linha"
+      "Planning item misturando multiplos conceitos em uma mesma linha",
+      "ADR sem alternatives ou com alternatives sem pros/cons (Fairy Tale ADR)",
+      "PRD que descreve solucao sem definir o problema (problemStatement ausente)",
+      "PRD com requisitos vagos sem criterios mensuraveis",
+      "ADR que mistura multiplas decisoes no mesmo documento"
     ]
   },
   "changelog": [
@@ -239,6 +269,10 @@
     {
       "date": "2026-03-07T21:55:00",
       "description": "Documentado estrutura completa de fixes[] para Tasks: campos description/logic com Markdown, files com badges (NOVO/MODIFICA/NAO MUDA), status opcional para tracking de progresso. Renderizacao dinamica baseada no status da task."
+    },
+    {
+      "date": "2026-03-08T14:55:00",
+      "description": "Melhorias de alto impacto: alternatives obrigatorio em ADR com pros/cons, problemStatement obrigatorio em PRD, campos risks/assumptions em PRD, campo deciders em ADR. 3 rules, 3 checklist, 4 anti-patterns adicionados."
     }
   ]
 }

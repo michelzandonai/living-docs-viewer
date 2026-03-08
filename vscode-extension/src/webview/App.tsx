@@ -73,18 +73,54 @@ export function App() {
   const themeClass = currentTheme === 'dark' ? 'dark' : ''
 
   if (error) {
+    const isNoFolder = error === '__NO_DOCS_FOLDER__'
     return (
       <div className={cn(themeClass, 'flex items-center justify-center h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100')}>
-        <div className="text-center p-8">
-          <div className="text-4xl mb-4 text-amber-500">!</div>
-          <h2 className="text-xl font-semibold mb-2">Erro ao carregar documentacao</h2>
-          <p className="text-zinc-500 dark:text-zinc-400">{error}</p>
-          <button
-            onClick={() => vscodeApi.postMessage({ type: 'requestIndex' })}
-            className="mt-4 px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity"
-          >
-            Tentar novamente
-          </button>
+        <div className="text-center p-8 max-w-md">
+          {isNoFolder ? (
+            <>
+              <div className="text-5xl mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto text-zinc-400 dark:text-zinc-500">
+                  <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
+                  <path d="M12 10v4"/>
+                  <path d="M12 18h.01"/>
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold mb-2">Pasta de documentacao nao encontrada</h2>
+              <p className="text-zinc-500 dark:text-zinc-400 mb-6">
+                Nenhuma pasta com documentos <code className="bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-sm">energimap-doc/v1</code> foi detectada automaticamente neste workspace.
+              </p>
+              <button
+                onClick={() => vscodeApi.postMessage({ type: 'selectFolder' })}
+                className="px-5 py-2.5 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity font-medium"
+              >
+                Selecionar pasta de documentacao
+              </button>
+              <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-3">
+                A escolha sera salva nas configuracoes do projeto.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="text-4xl mb-4 text-amber-500">!</div>
+              <h2 className="text-xl font-semibold mb-2">Erro ao carregar documentacao</h2>
+              <p className="text-zinc-500 dark:text-zinc-400">{error}</p>
+              <div className="flex gap-3 justify-center mt-4">
+                <button
+                  onClick={() => vscodeApi.postMessage({ type: 'requestIndex' })}
+                  className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Tentar novamente
+                </button>
+                <button
+                  onClick={() => vscodeApi.postMessage({ type: 'selectFolder' })}
+                  className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Selecionar pasta
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     )

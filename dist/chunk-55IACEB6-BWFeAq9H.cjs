@@ -1,0 +1,1 @@
+"use strict";const s=require("./mermaid.core-CYui2nUM.cjs"),e=require("./index-_KaiwqFN.cjs");var r=s.__name((t,n)=>{let o;return n==="sandbox"&&(o=e.select("#i"+t)),(n==="sandbox"?e.select(o.nodes()[0].contentDocument.body):e.select("body")).select(`[id="${t}"]`)},"getDiagramElement");exports.getDiagramElement=r;

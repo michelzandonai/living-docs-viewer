@@ -1,0 +1,1 @@
+"use strict";Object.defineProperty(exports,Symbol.toStringTag,{value:"Module"});const e=require("./mermaid-parser.core-DBdQH5gg.cjs");exports.InfoModule=e.InfoModule;exports.createInfoServices=e.createInfoServices;

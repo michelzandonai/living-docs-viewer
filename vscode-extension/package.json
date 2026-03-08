@@ -16,6 +16,29 @@
   "activationEvents": [],
   "main": "./dist/extension/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "living-docs",
+          "title": "Living Docs",
+          "icon": "media/icon-dark.svg"
+        }
+      ]
+    },
+    "views": {
+      "living-docs": [
+        {
+          "id": "livingDocs.welcome",
+          "name": "Living Docs"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "livingDocs.welcome",
+        "contents": "Visualize a documentacao living docs do projeto.\n[Abrir Living Docs](command:livingDocs.openPanel)"
+      }
+    ],
     "customEditors": [
       {
         "viewType": "livingDocs.docViewer",
@@ -28,6 +51,14 @@
     ],
     "commands": [
       {
+        "command": "livingDocs.openPanel",
+        "title": "Living Docs: Abrir Viewer",
+        "icon": {
+          "light": "media/icon-light.svg",
+          "dark": "media/icon-dark.svg"
+        }
+      },
+      {
         "command": "livingDocs.openPreview",
         "title": "Living Docs: Open Preview",
         "icon": {
@@ -36,6 +67,16 @@
         }
       }
     ],
+    "configuration": {
+      "title": "Living Docs",
+      "properties": {
+        "livingDocs.docsPath": {
+          "type": "string",
+          "default": "",
+          "description": "Caminho para a pasta de documentacao (relativo ao workspace). Ex: moving-storage-back/docs"
+        }
+      }
+    },
     "menus": {
       "editor/title": [
         {
