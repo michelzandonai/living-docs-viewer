@@ -13,10 +13,12 @@ export default defineConfig({
   build: {
     outDir: resolve(__dirname, 'dist/webview'),
     emptyOutDir: true,
+    cssCodeSplit: false,
     rollupOptions: {
       output: {
-        entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name].js',
+        entryFileNames: 'assets/index.js',
+        // Single chunk — no code splitting (CSP nonce requires it)
+        manualChunks: () => 'index',
         assetFileNames: 'assets/[name].[ext]',
       },
     },

@@ -29,9 +29,22 @@
     "commands": [
       {
         "command": "livingDocs.openPreview",
-        "title": "Living Docs: Open Preview"
+        "title": "Living Docs: Open Preview",
+        "icon": {
+          "light": "media/icon-light.svg",
+          "dark": "media/icon-dark.svg"
+        }
       }
-    ]
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "when": "resourceExtname == .json",
+          "command": "livingDocs.openPreview",
+          "group": "navigation"
+        }
+      ]
+    }
   },
   "scripts": {
     "build:ext": "node esbuild.extension.mjs",

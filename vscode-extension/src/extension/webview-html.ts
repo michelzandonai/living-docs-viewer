@@ -10,7 +10,7 @@ export function getWebviewHtml(
     vscode.Uri.joinPath(webviewDistUri, 'assets', 'index.js')
   )
   const styleUri = webview.asWebviewUri(
-    vscode.Uri.joinPath(webviewDistUri, 'assets', 'index.css')
+    vscode.Uri.joinPath(webviewDistUri, 'assets', 'style.css')
   )
 
   const nonce = getNonce()
@@ -23,7 +23,7 @@ export function getWebviewHtml(
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'none';
     style-src ${webview.cspSource} 'unsafe-inline';
-    script-src 'nonce-${nonce}';
+    script-src 'nonce-${nonce}' ${webview.cspSource};
     img-src ${webview.cspSource} https: data:;
     font-src ${webview.cspSource};
   ">
@@ -32,7 +32,7 @@ export function getWebviewHtml(
 </head>
 <body>
   <div id="root"></div>
-  <script nonce="${nonce}" src="${scriptUri}"></script>
+  <script nonce="${nonce}" src="${scriptUri}" type="module"></script>
 </body>
 </html>`
 }
