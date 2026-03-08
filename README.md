@@ -1,47 +1,41 @@
 # Living Docs Viewer
 
-![version](https://img.shields.io/badge/version-0.4.2-blue)
+![version](https://img.shields.io/badge/version-0.5.3-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
+![tests](https://img.shields.io/badge/tests-208%20passed-brightgreen)
+![types](https://img.shields.io/badge/types-TypeScript-blue)
 
-Biblioteca React + Express para visualizar documentos de arquitetura viva no padrao **energimap-doc/v1**. Suporta ADRs, PRDs, Guidelines, Tasks e Planning Docs com sidebar navegavel, busca full-text, dark mode, secao de recentes, diagramas Mermaid e grafo de dependencias.
+Render architecture documents as an interactive SPA. Supports **ADRs**, **PRDs**, **Guidelines**, **Tasks** and **Planning Docs** with navigable sidebar, full-text search, dark mode, dependency graph, ReactFlow diagrams and 5-tab universal layout.
+
+Works as **Express middleware**, **React component library** or **VS Code extension**.
 
 ---
 
-## Indice
+## Table of Contents
 
-- [Instalacao](#instalacao)
-- [Uso Rapido (Middleware Express)](#uso-rapido-middleware-express)
-- [Configuracao](#configuracao)
+- [Quick Start](#quick-start)
+- [VS Code Extension](#vs-code-extension)
 - [Features](#features)
-- [Schema dos Documentos](#schema-dos-documentos)
-- [Estrutura de Pastas Esperada](#estrutura-de-pastas-esperada)
+- [Document Schema](#document-schema)
+- [Folder Structure](#folder-structure)
 - [Catalogs](#catalogs)
-- [Integracao como Biblioteca React](#integracao-como-biblioteca-react)
-- [Testes](#testes)
-- [Desenvolvimento](#desenvolvimento)
-- [Licenca](#licenca)
+- [React Integration](#react-integration)
+- [Bundled Guideline](#bundled-guideline)
+- [Testing](#testing)
+- [Development](#development)
+- [License](#license)
 
 ---
 
-## Instalacao
+## Quick Start
+
+### Install
 
 ```bash
 npm install github:michelzandonai/living-docs-viewer
 ```
 
-Peer dependencies:
-
-| Dependencia | Versao |
-|-------------|--------|
-| React       | >= 18  |
-| React DOM   | >= 18  |
-| Express     | >= 4 (opcional, apenas para middleware) |
-
----
-
-## Uso Rapido (Middleware Express)
-
-Tres linhas integram o viewer a qualquer aplicacao Express existente:
+### Express Middleware
 
 ```typescript
 import express from 'express'
@@ -52,226 +46,232 @@ const app = express()
 
 app.use('/docs', createLivingDocsMiddleware({
   docsPath: resolve(__dirname, '../docs'),
-  title: 'Documentacao - Meu Projeto',
+  title: 'My Project Docs',
   theme: 'dark',
   basePath: '/docs',
 }))
 
-app.listen(3000, () => {
-  console.log('Docs em http://localhost:3000/docs')
-})
+app.listen(3000)
 ```
 
-O middleware serve a SPA do viewer, expoe uma API para os documentos JSON e gera um indice dinamico automaticamente.
+> Mount **before** Helmet — CSP blocks inline scripts.
+
+Full middleware options and routes: [`src/server/middleware.ts`](src/server/middleware.ts)
 
 ---
 
-## Configuracao
+## VS Code Extension
 
-### Opcoes do Middleware
+The extension renders `energimap-doc/v1` JSON files directly inside VS Code.
 
-```typescript
-interface LivingDocsOptions {
-  docsPath: string          // Caminho absoluto para a pasta de documentos
-  title?: string            // Titulo exibido na aba do navegador (padrao: "Documentacao")
-  theme?: 'light' | 'dark'  // Tema inicial (padrao: 'light')
-  basePath?: string         // Prefixo das rotas (deve coincidir com app.use())
-}
-```
+### How to use
 
-**Regra critica:** O valor de `basePath` DEVE ser identico ao path usado em `app.use()`. Se usar `app.use('/documentacao', ...)`, entao `basePath: '/documentacao'`.
+1. Install the `.vsix` from [`vscode-extension/`](vscode-extension/)
+2. Open any project that has a `docs/` folder with JSON docs
+3. Click the **Living Docs** icon in the Activity Bar
 
-### Rotas Expostas
+### Features
 
-Quando montado com `app.use('/docs', middleware)`:
+| Feature | Description |
+|---------|-------------|
+| **Activity Bar panel** | Full docs viewer with sidebar, search and tabs |
+| **Custom Editor** | Right-click any `.json` > "Open With..." > Living Docs Viewer |
+| **Auto folder detection** | Scans `docs/` and `*/docs/` automatically |
+| **Folder picker** | Manual selection saved to workspace settings |
+| **Theme sync** | Follows VS Code light/dark theme |
+| **Live reload** | Watches for file changes |
+| **Auto dateModified** | Updates `metadata.dateModified` on save |
+| **Version checker** | Notifies when `living-docs-viewer` lib is outdated |
 
-| Rota | Descricao |
-|------|-----------|
-| `GET /docs/api/docs-index.json` | Indice dinamico gerado com cache inteligente |
-| `GET /docs/api/adr/ROOT-001.json` | Documento JSON individual |
-| `GET /docs/api/_catalogs/authors.json` | Catalogo de autores |
-| `GET /docs/*` | Fallback para SPA (index.html) |
+Extension source: [`vscode-extension/src/extension/`](vscode-extension/src/extension/)
 
 ---
 
 ## Features
 
-### Tipos de Documento
+### Document Types
 
-| Tipo | Pasta |
-|------|-------|
-| ADR | `docs/adr/` |
-| PRD | `docs/prd/` |
-| Guideline | `docs/guidelines/` |
-| Task | `docs/tasks/` |
-| Planning | `docs/planning/` |
+| Type | Folder | ID Pattern | Details |
+|------|--------|------------|---------|
+| ADR | `docs/adr/{scope}/` | `ADR-NNN` | [`DocAdrDetail.tsx`](src/components/DocAdrDetail.tsx) |
+| PRD | `docs/prd/` | `PRD-name` | [`DocPrdDetail.tsx`](src/components/DocPrdDetail.tsx) |
+| Guideline | `docs/guidelines/` | `GUIDELINE-NNN` | [`DocGuidelineDetail.tsx`](src/components/DocGuidelineDetail.tsx) |
+| Task | `docs/tasks/` | `TASK-NNN` | [`DocTaskDetail.tsx`](src/components/DocTaskDetail.tsx) |
+| Planning | `docs/planning/` | `PLAN-NNN` | [`DocPlanningDetail.tsx`](src/components/DocPlanningDetail.tsx) |
 
-Todos os tipos suportam filtro por tipo, status e scope na sidebar, alem de busca textual por titulo e summary.
+### 5-Tab Universal Layout
 
-### Geracao Dinamica de Index com Cache
+Every document maps content into 5 tabs:
 
-O middleware gera o indice de documentos (`docs-index.json`) dinamicamente. O index inclui estatisticas agregadas (total, por tipo, por status, por scope).
+| Tab | Content |
+|-----|---------|
+| **Resumo** | Overview, context, main decision |
+| **Analise** | Technical details, consequences, alternatives |
+| **Implementacao** | Step-by-step, conventions, checklist |
+| **Dados** | Tables, metrics, structured fields |
+| **Conexoes** | Cross-references, diagrams, changelog |
 
-O cache em memoria e invalidado automaticamente quando o `mtime` de qualquer subpasta de documentos muda, evitando leitura desnecessaria do filesystem a cada request.
+Tab mapping per type: [`DocDetail.tsx`](src/components/DocDetail.tsx)
 
-A funcao `generateDocsIndex(docsPath)` tambem e exportada para uso programatico.
+### Sidebar
 
-### Dark Mode com Persistencia
+- Tree navigation by type, status and scope
+- Full-text search across title and summary
+- "Recent" section based on `dateModified`
+- Expandable 5-by-5 with persistence
 
-O viewer inclui toggle de tema claro/escuro. A preferencia do usuario e salva em `localStorage('living-docs-theme')` e prevalece sobre a configuracao do servidor.
+Source: [`DocsSidebar.tsx`](src/components/DocsSidebar.tsx)
 
-O tema inicial pode ser definido via opcao `theme` do middleware ou via prop `theme` do componente React.
+### Diagrams
 
-### Secao "Recentes" na Sidebar
+| Format | Renderer | Source |
+|--------|----------|--------|
+| ReactFlow JSON | `@xyflow/react` + `@dagrejs/dagre` | [`src/components/diagrams/`](src/components/diagrams/) |
+| Mermaid | `mermaid` (lazy-loaded) | [`MermaidDiagram.tsx`](src/components/MermaidDiagram.tsx) |
 
-A sidebar exibe os documentos mais recentemente modificados, baseado no campo `metadata.dateModified` dos JSONs.
+ReactFlow is the recommended format for new diagrams (JSON nodes + edges with color palette).
 
-- Expansivel de 5 em 5 documentos (botao "Ver mais")
-- Quantidade visivel persistida em `localStorage`
-- Suporta formatos ISO com horas (`YYYY-MM-DDTHH:mm:ss`) e apenas data (`YYYY-MM-DD`)
-- Filtra apenas documentos com status `accepted`, `implemented` ou `active`
+### Dependency Graph
 
-### Diagramas Mermaid
+Interactive visualization of cross-document references using ReactFlow.
 
-Documentos que incluem diagramas Mermaid tem renderizacao inline diretamente no viewer, com lazy-loading para performance.
+Source: [`src/components/diagrams/dependency-graph/`](src/components/diagrams/dependency-graph/)
 
-### Grafo de Dependencias
+### Dynamic Index with Cache
 
-Visualizacao interativa das dependencias entre documentos, baseada no campo `references` dos JSONs. Usa Cytoscape/React Flow para renderizacao do grafo com zoom e pan.
+The middleware generates `docs-index.json` dynamically with aggregate stats (total, by type, by status, by scope). Cache invalidates when any subfolder `mtime` changes.
+
+`generateDocsIndex(docsPath)` is also exported for programmatic use.
+
+Source: [`src/server/middleware.ts`](src/server/middleware.ts)
+
+### Dark Mode
+
+Theme toggle with `localStorage` persistence. Initial theme configurable via middleware option or React prop.
 
 ---
 
-## Schema dos Documentos
+## Document Schema
 
-Os documentos seguem o schema **energimap-doc/v1**. Estrutura base:
+Documents follow the **energimap-doc/v1** schema:
 
 ```json
 {
-  "$docSchema": "energimap-doc/v1",
   "id": "ADR-001",
-  "type": "adr",
   "metadata": {
-    "title": "Escolha do ORM",
+    "title": "ORM Selection",
     "status": "accepted",
-    "scope": "shared",
-    "dateCreated": "2025-01-15",
-    "dateModified": "2025-02-01T14:30:00",
+    "dateCreated": "2026-01-15T14:30:00",
+    "dateModified": "2026-02-01T14:30:00",
     "authorIds": ["michel"],
-    "tagIds": ["backend", "db"],
-    "summary": "Justificativa para uso do Drizzle ORM"
+    "summary": "Why we chose Drizzle ORM"
   },
   "sections": [
     {
-      "id": "contexto",
-      "title": "Contexto",
-      "content": "Conteudo em Markdown..."
+      "title": "Context",
+      "content": "Markdown content..."
     }
   ],
-  "references": [
-    {
-      "targetId": "ADR-002",
-      "type": "related"
-    }
-  ],
-  "tables": [],
+  "adr": {
+    "context": "...",
+    "decision": "...",
+    "consequences": { "positive": [], "negative": [], "mitigations": [] },
+    "alternatives": [
+      { "option": "Prisma", "pros": ["..."], "cons": ["..."] },
+      { "option": "Drizzle", "pros": ["..."], "cons": ["..."], "chosen": true }
+    ]
+  },
+  "references": [],
   "diagrams": [],
-  "changelog": [
-    {
-      "version": "1.0",
-      "date": "2025-01-15",
-      "description": "Versao inicial"
-    }
-  ]
+  "changelog": []
 }
 ```
 
-### Campos de Metadata
+### Metadata Fields
 
-| Campo | Tipo | Descricao |
-|-------|------|-----------|
-| `title` | string | Titulo do documento |
-| `status` | string | `accepted`, `proposed`, `deprecated`, `superseded`, `implemented`, `active` |
-| `scope` | string | `shared`, `api`, `frontend`, `mobile`, `cross-project` |
-| `dateCreated` | string | Data de criacao (ISO) |
-| `dateModified` | string | Data de modificacao (ISO, com ou sem horas) |
-| `authorIds` | string[] | IDs referenciando o catalogo de autores |
-| `tagIds` | string[] | IDs referenciando o catalogo de tags |
-| `summary` | string | Resumo curto do documento |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `title` | string | Yes | Max 35 chars, content-based |
+| `status` | string | Yes | `proposed`, `accepted`, `deprecated`, `superseded` |
+| `dateCreated` | string | Yes | ISO `YYYY-MM-DDTHH:mm:ss` |
+| `dateModified` | string | Yes | ISO `YYYY-MM-DDTHH:mm:ss` |
+| `authorIds` | string[] | Yes | References `_catalogs/authors.json` |
+| `summary` | string | No | Short description |
+| `tagIds` | string[] | No | References `_catalogs/tags.json` |
+| `scope` | string | No | `shared`, `api`, `frontend`, `mobile`, `cross-project` |
 
-### Tipos de Referencia
+### Type-Specific Fields
 
-| Tipo | Descricao |
-|------|-----------|
-| `references` | Referencia generica |
-| `supersedes` | Este documento substitui o alvo |
-| `depends_on` | Depende do documento alvo |
-| `related` | Relacionado ao documento alvo |
+| Type | Required Fields | Optional Fields |
+|------|----------------|-----------------|
+| **ADR** | `context`, `decision`, `consequences`, `alternatives` | `deciders`, `invariants`, `principles`, `phases` |
+| **PRD** | `problemStatement` | `version`, `personas`, `scope`, `functionalRequirements`, `businessRules`, `metrics`, `risks`, `assumptions` |
+| **Guideline** | `appliesTo`, `rules` | `checklist`, `antiPatterns` |
+| **Task** | `context.problem`, `fixes` | `allFilesModified`, `verify`, `regressionTests`, `links` |
+| **Planning** | `goal`, `phases` or `items` | `risks`, `files`, `verify` |
 
-Cada tipo de documento (ADR, PRD, Guideline, Task, Planning) possui campos tipo-especificos adicionais alem da estrutura base.
+Full schema details: [`src/lib/types.ts`](src/lib/types.ts)
 
 ---
 
-## Estrutura de Pastas Esperada
+## Folder Structure
 
 ```
 docs/
-├── adr/                    # Architecture Decision Records
-│   ├── ROOT-001.json
-│   └── BACK-002.json
-├── prd/                    # Product Requirement Documents
-│   └── PRD-ENTREGA.json
-├── guidelines/             # Diretrizes e padroes
-│   └── GUIDE-BACK-001.json
-├── tasks/                  # Tasks de desenvolvimento
-│   └── TASK-001.json
-├── planning/               # Documentos de planejamento
-│   └── PLAN-SPRINT-42.json
-├── _catalogs/              # Catalogs (opcional)
-│   ├── authors.json
-│   ├── tags.json
-│   └── glossary.json
-├── _schema/                # Schemas JSON (opcional)
-└── docs-index.json         # Gerado automaticamente pelo middleware
+  adr/
+    shared/ADR-001.json
+    api/ADR-002.json
+  prd/
+    authentication.json
+  guidelines/
+    GUIDELINE-001.json
+  tasks/
+    TASK-001.json
+  planning/
+    PLAN-001.json
+  _catalogs/
+    authors.json
+    tags.json
+    glossary.json
 ```
 
-**Convencoes:**
-
-- Pastas em **lowercase**: `adr/`, `prd/`, `guidelines/`, `tasks/`, `planning/`
-- Apenas arquivos `.json` sao processados
-- O campo `id` deve ser unico em todo o projeto
-- Subpastas dentro de cada tipo sao escaneadas recursivamente
-- Pastas com prefixo `_` e pasta `archived/` sao ignoradas
+**Conventions:**
+- Folders in lowercase
+- Only `.json` files are processed
+- Subfolders scanned recursively
+- `_catalogs`, `_schema`, `_deprecated`, `archived`, `node_modules` are ignored
+- Deprecated docs use triple signal: `_deprecated/` folder + `DEPRECATED_` prefix + status `deprecated`
 
 ---
 
 ## Catalogs
 
-Catalogs sao arquivos JSON opcionais em `docs/_catalogs/` que enriquecem os documentos.
+Optional JSON files in `docs/_catalogs/` that enrich documents.
 
-### authors.json
+### `authors.json`
 
 ```json
 {
   "michel": { "name": "Michel Zandonai", "role": "Tech Lead" },
-  "joao": { "name": "Joao Silva", "role": "Backend Developer" }
+  "claude": { "name": "Claude + Michel", "role": "AI-Assisted" }
 }
 ```
 
-### tags.json
+### `tags.json`
 
 ```json
 {
   "backend": { "label": "Backend", "category": "area" },
-  "security": { "label": "Seguranca", "category": "concern" }
+  "security": { "label": "Security", "category": "concern" }
 }
 ```
 
-### glossary.json
+### `glossary.json`
 
 ```json
 {
   "orm": {
-    "definition": "Object-Relational Mapping - camada de abstracao sobre o banco de dados",
+    "definition": "Object-Relational Mapping",
     "aliases": ["Object-Relational Mapper"]
   }
 }
@@ -279,70 +279,48 @@ Catalogs sao arquivos JSON opcionais em `docs/_catalogs/` que enriquecem os docu
 
 ---
 
-## Integracao como Biblioteca React
+## React Integration
 
-Para projetos com frontend React proprio, os componentes podem ser importados diretamente:
+### Full Viewer
 
 ```tsx
 import { DocsViewer } from 'living-docs-viewer'
 import 'living-docs-viewer/styles.css'
 
-function DocsPage() {
-  return (
-    <DocsViewer
-      apiUrl="http://localhost:3000/docs"
-      theme="light"
-      className="h-screen"
-      onDocSelect={(docId) => console.log('Selecionou:', docId)}
-    />
-  )
-}
+<DocsViewer apiUrl="http://localhost:3000/docs" theme="dark" />
 ```
 
-### Composicao com Componentes Individuais
+### Individual Components
 
 ```tsx
-import {
-  DocsLayoutShell,
-  DocsSidebar,
-  DocDetail,
-  useDocsStore,
-  DocsThemeToggle,
-} from 'living-docs-viewer'
+import { DocsLayoutShell, DocsSidebar, DocDetail, useDocsStore } from 'living-docs-viewer'
 import 'living-docs-viewer/styles.css'
 
-function CustomLayout() {
-  const loadIndex = useDocsStore((s) => s.loadIndex)
-
-  useEffect(() => {
-    loadIndex('http://localhost:3000/docs')
-  }, [])
+function DocsPage() {
+  useEffect(() => { useDocsStore.getState().loadIndex('/docs') }, [])
 
   return (
-    <DocsLayoutShell
-      sidebar={<DocsSidebar />}
-      content={<DocDetail />}
-    />
+    <DocsLayoutShell sidebar={<DocsSidebar />}>
+      <DocDetail />
+    </DocsLayoutShell>
   )
 }
 ```
 
-### Componentes Exportados
+### Exported Components
 
-| Componente | Descricao |
-|------------|-----------|
-| `DocsViewer` | Viewer completo (sidebar + conteudo) |
-| `DocsLayoutShell` | Shell de layout com sidebar redimensionavel |
-| `DocsSidebar` | Sidebar com arvore navegavel e filtros |
-| `DocDetail` | Area principal de conteudo |
-| `DocSearch` | Campo de busca full-text |
-| `DocsThemeToggle` | Botao de alternar tema claro/escuro |
-| `DiagramRenderer` | Renderiza diagramas Mermaid (lazy-loaded) |
-| `DependencyGraph` | Grafo interativo de dependencias |
+| Component | Description |
+|-----------|-------------|
+| [`DocsViewer`](src/components/DocsViewer.tsx) | Complete viewer (sidebar + content) |
+| [`DocsLayoutShell`](src/components/DocsLayoutShell.tsx) | Layout shell with resizable sidebar |
+| [`DocsSidebar`](src/components/DocsSidebar.tsx) | Navigable sidebar with filters and search |
+| [`DocDetail`](src/components/DocDetail.tsx) | Main content area with tabs |
+| [`DocSearch`](src/components/DocSearch.tsx) | Full-text search field |
+| [`DocsThemeToggle`](src/components/DocsThemeToggle.tsx) | Theme toggle button |
+| [`DiagramRenderer`](src/components/diagrams/diagram-renderer.tsx) | ReactFlow diagram renderer |
+| [`DependencyGraph`](src/components/diagrams/dependency-graph/) | Interactive dependency graph |
 
-### Store (Zustand)
-
-O estado global e acessivel via `useDocsStore`:
+### Zustand Store
 
 ```tsx
 import { useDocsStore } from 'living-docs-viewer'
@@ -354,32 +332,56 @@ const loadIndex = useDocsStore((s) => s.loadIndex)
 const selectDoc = useDocsStore((s) => s.selectDoc)
 ```
 
+Store source: [`src/hooks/use-docs-store.ts`](src/hooks/use-docs-store.ts)
+
 ---
 
-## Testes
+## Bundled Guideline
 
-O projeto possui 138 testes automatizados em 7 suites, usando **vitest**:
+The library bundles [GUIDELINE-001](src/docs/guidelines/GUIDELINE-001-living-docs-guide.json) — the canonical guide for creating and maintaining Living Docs. It covers schema rules, naming conventions, checklists and anti-patterns.
+
+When using the Express middleware, bundled docs are automatically merged with your project's docs:
+- **Priority:** local docs override bundled (by `id`)
+- **Disable:** `includeBundledDocs: false`
+- **Update:** `npm update living-docs-viewer` to get the latest guideline
+
+This ensures all consumer projects share the same documentation standards without manual file copying.
+
+---
+
+## Testing
+
+208 tests across 16 suites (vitest):
 
 ```bash
-npm test           # Rodar todos
-npm run test:watch # Modo watch
+npm test           # Run all
+npm run test:watch # Watch mode
 ```
 
-| Suite | Descricao |
-|-------|-----------|
-| `recent-docs.test.ts` | Ordenacao, formatacao de datas, filtros e expansao de recentes |
-| `generate-docs-index.test.ts` | Geracao de index, cache por mtime, middleware, read-only |
-| `middleware.test.ts` | Express middleware, SPA serving, config injection |
-| `search-docs.test.ts` | Busca full-text com suporte a acentos |
-| `resolve-catalogs.test.ts` | Resolucao de autores e tags |
-| `normalize-diagram-type.test.ts` | Mapeamento de tipos de diagrama |
-| `build-graph.test.ts` | Construcao de grafo e ghost nodes |
+| Suite | Tests | Description |
+|-------|-------|-------------|
+| [`middleware.test.ts`](test/middleware.test.ts) | 34 | Express routes, SPA fallback, config injection |
+| [`generate-docs-index.test.ts`](test/generate-docs-index.test.ts) | 26 | Directory scan, ordering, skip dirs, invalid JSON |
+| [`normalize-diagram-type.test.ts`](test/normalize-diagram-type.test.ts) | 22 | Diagram type normalization |
+| [`search-docs.test.ts`](test/search-docs.test.ts) | 15 | Full-text search with accent support |
+| [`build-graph.test.ts`](test/build-graph.test.ts) | 15 | Dependency graph construction |
+| [`resolve-catalogs.test.ts`](test/resolve-catalogs.test.ts) | 14 | Author and tag resolution |
+| [`recent-docs.test.ts`](test/recent-docs.test.ts) | 13 | Recent docs ordering and filtering |
+| [`parse-file-badge.test.ts`](test/parse-file-badge.test.ts) | 11 | File badge parsing (NOVO/MODIFICA) |
+| [`fix-card.test.tsx`](test/fix-card.test.tsx) | 11 | Fix card component rendering |
+| [`task-overview.test.tsx`](test/task-overview.test.tsx) | 9 | Task overview component |
+| [`get-task-labels.test.ts`](test/get-task-labels.test.ts) | 8 | Dynamic task labels |
+| [`task-tab-labels.test.ts`](test/task-tab-labels.test.ts) | 8 | Task tab label rendering |
+| [`url-sync.test.ts`](test/url-sync.test.ts) | 7 | URL hash synchronization |
+| [`collapsible-section.test.tsx`](test/collapsible-section.test.tsx) | 7 | Collapsible section component |
+| [`docs-viewer-hash.test.tsx`](test/docs-viewer-hash.test.tsx) | 4 | Viewer hash navigation |
+| [`fix-status-icon.test.tsx`](test/fix-status-icon.test.tsx) | 4 | Status icon component |
 
 ---
 
-## Desenvolvimento
+## Development
 
-### Requisitos
+### Requirements
 
 - Node.js 18+
 - npm
@@ -394,35 +396,63 @@ npm install
 
 ### Scripts
 
-| Script | Descricao |
-|--------|-----------|
-| `npm run dev` | Servidor de desenvolvimento (Vite) |
-| `npm run build` | Build da biblioteca (ES + CJS + tipos) |
-| `npm run build:app` | Build da SPA do viewer (`dist/app/`) |
-| `npm run build:server` | Build do middleware Express (tsup) |
-| `npm run build:all` | Build completo (lib + app + server) |
-| `npm test` | Rodar testes |
-| `npm run test:watch` | Testes em modo watch |
-| `npm run lint` | Linting com ESLint |
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Vite dev server |
+| `npm run build` | Build library (tsc + Vite, ESM + CJS) |
+| `npm run build:app` | Build standalone SPA (`dist/app/`) |
+| `npm run build:server` | Build Express middleware (tsup, ESM + CJS) |
+| `npm run build:docs` | Copy bundled docs to `dist/docs/` |
+| `npm run build:all` | Full build (lib + app + server + docs) |
+| `npm test` | Run tests |
+| `npm run test:watch` | Tests in watch mode |
+| `npm run lint` | ESLint |
 
-### Artefatos de Build
+### Build Artifacts
 
-| Artefato | Descricao |
-|----------|-----------|
-| `dist/index.es.js` / `dist/index.cjs.js` | Componentes React (ES + CJS) |
-| `dist/app/` | SPA standalone completa |
-| `dist/server/middleware.js` | Middleware Express |
-| `dist/living-docs-viewer.css` | Estilos CSS |
+| Artifact | Description |
+|----------|-------------|
+| `dist/index.es.js` / `dist/index.cjs.js` | React components (ESM + CJS) |
+| `dist/app/` | Standalone SPA |
+| `dist/server/middleware.js` | Express middleware |
+| `dist/docs/` | Bundled documentation |
+| `dist/living-docs-viewer.css` | Styles |
 
 ### Stack
 
-- React 19, TypeScript, Tailwind CSS
-- Zustand (estado global), Mermaid (diagramas), Cytoscape (grafo)
-- Vite (build lib + SPA), tsup (build server)
-- vitest (testes)
+| Layer | Technology |
+|-------|------------|
+| UI | React 19, TypeScript, Tailwind CSS |
+| State | Zustand |
+| Diagrams | @xyflow/react, @dagrejs/dagre, Mermaid |
+| Markdown | react-markdown, remark-gfm, rehype-highlight |
+| Build | Vite (lib + SPA), tsup (server) |
+| Tests | Vitest, happy-dom, supertest |
+| VS Code | Custom Editor API, WebviewPanel |
+
+### Architecture
+
+```
+src/
+  components/        # React components (viewer, sidebar, detail pages, diagrams)
+  hooks/             # Zustand store
+  lib/               # Types, utilities, search, graph
+  server/            # Express middleware
+  styles/            # Tailwind CSS
+  docs/              # Bundled docs (guideline)
+  app/               # Standalone SPA entry
+  index.ts           # Public API exports
+
+vscode-extension/
+  src/extension/     # VS Code extension host (Node.js)
+  src/webview/       # VS Code webview (React, reuses src/components)
+  src/shared/        # Message protocol types
+
+test/                # 208 tests across 16 suites
+```
 
 ---
 
-## Licenca
+## License
 
 MIT
