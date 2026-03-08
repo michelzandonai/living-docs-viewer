@@ -1,0 +1,11 @@
+src/**
+node_modules/**
+.gitignore
+tsconfig*.json
+vite.webview.config.ts
+esbuild.extension.mjs
+tailwind.config.js
+postcss.config.js
+scripts/**
+*.md
+!README.md
