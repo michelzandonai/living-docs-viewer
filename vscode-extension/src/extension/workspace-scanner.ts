@@ -141,8 +141,8 @@ export async function scanWorkspaceForDocs(docsFolder: vscode.Uri): Promise<Docs
 
   // Sort by mtime descending (most recent first)
   documents.sort((a, b) => {
-    const aTime = a._fileMtime || a.dateModified || a.dateCreated || ''
-    const bTime = b._fileMtime || b.dateModified || b.dateCreated || ''
+    const aTime = a.dateModified || a._fileMtime || a.dateCreated || ''
+    const bTime = b.dateModified || b._fileMtime || b.dateCreated || ''
     return bTime.localeCompare(aTime)
   })
 
