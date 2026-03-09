@@ -1,0 +1,1 @@
+"use strict";const i=require("./mermaid.core-BMV1K6H7.cjs");var t,r=(t=class{constructor(e){this.init=e,this.records=this.init()}reset(){this.records=this.init()}},i.__name(t,"ImperativeState"),t);exports.ImperativeState=r;

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import express, { Router, static as expressStatic } from 'express'
-import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
+import { readFileSync, readdirSync, existsSync } from 'fs'
 import { resolve, join, relative, extname } from 'path'
 import type { Server } from 'http'
 import request from 'supertest'
@@ -72,12 +72,11 @@ function buildTestIndex(docsPath: string): object {
       if (!doc.id || !doc.metadata) continue
       const relPath = relative(docsPath, filePath)
       const type = doc.type || deriveType(relPath) || 'unknown'
-      const stat = statSync(filePath)
       documents.push({
         id: doc.id, type, title: doc.metadata.title || doc.id,
         status: doc.metadata.status || 'unknown', scope: doc.metadata.scope || 'shared',
         dateCreated: doc.metadata.dateCreated || '', dateModified: doc.metadata.dateModified,
-        _fileMtime: stat.mtime.toISOString(), tagIds: doc.metadata.tagIds || [],
+        tagIds: doc.metadata.tagIds || [],
         summary: doc.metadata.summary || '', path: relPath,
       })
       byType[type] = (byType[type] || 0) + 1

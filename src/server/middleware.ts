@@ -104,7 +104,6 @@ function buildIndex(docsPath: string, extraDocsPaths: string[] = []): DocsIndex 
       seenIds.add(doc.id)
       const relPath = relative(basePath, filePath)
       const type = doc.type || deriveType(relPath) || 'unknown'
-      const stat = statSync(filePath)
 
       documents.push({
         id: doc.id,
@@ -114,7 +113,6 @@ function buildIndex(docsPath: string, extraDocsPaths: string[] = []): DocsIndex 
         scope: doc.metadata.scope || 'shared',
         dateCreated: doc.metadata.dateCreated || '',
         dateModified: doc.metadata.dateModified,
-        _fileMtime: stat.mtime.toISOString(),
         tagIds: doc.metadata.tagIds || [],
         summary: doc.metadata.summary || '',
         path: relPath,

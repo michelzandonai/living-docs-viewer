@@ -11,7 +11,6 @@ function criarDoc(overrides: Partial<DocsIndexEntry> = {}): DocsIndexEntry {
     scope: overrides.scope ?? 'api',
     dateCreated: overrides.dateCreated ?? '2025-12-01',
     dateModified: overrides.dateModified,
-    _fileMtime: overrides._fileMtime,
     tagIds: overrides.tagIds ?? [],
     summary: overrides.summary ?? 'Resumo de teste',
     path: overrides.path ?? 'tasks/TASK-001.json',
@@ -209,105 +208,74 @@ describe('getRecentDocs - Documentos Recentes', () => {
     })
   })
 
-  describe('Prioridade de datas (dateModified > _fileMtime > dateCreated)', () => {
-    it('dateModified tem prioridade sobre _fileMtime', () => {
+  describe('Prioridade de datas (dateModified > dateCreated)', () => {
+    it('dateModified tem prioridade sobre dateCreated', () => {
       const docs = [
         criarDoc({
-          id: 'DOC-A',
+          id: 'DOC-OLD-CREATED-BUT-MODIFIED',
           type: 'task',
           dateCreated: '2025-01-01',
           dateModified: '2026-03-08T14:00:00',
-          _fileMtime: '2026-01-01T00:00:00',
           status: 'done',
         }),
         criarDoc({
-          id: 'DOC-B',
+          id: 'DOC-NEW-CREATED-NO-MOD',
           type: 'task',
-          dateCreated: '2025-01-01',
-          _fileMtime: '2026-03-09T00:00:00',
+          dateCreated: '2026-03-07',
           status: 'done',
         }),
       ]
 
       const resultado = getRecentDocs(docs, 10)
-      // DOC-B tem _fileMtime mais recente, mas DOC-A tem dateModified
-      // DOC-B sem dateModified usa _fileMtime (2026-03-09) > DOC-A dateModified (2026-03-08)
-      expect(resultado[0].id).toBe('DOC-B')
-      expect(resultado[1].id).toBe('DOC-A')
+      expect(resultado[0].id).toBe('DOC-OLD-CREATED-BUT-MODIFIED')
+      expect(resultado[1].id).toBe('DOC-NEW-CREATED-NO-MOD')
     })
 
-    it('dateModified vence _fileMtime mesmo quando _fileMtime e mais recente', () => {
+    it('ordena por dateModified quando ambos docs tem dateModified', () => {
       const docs = [
         criarDoc({
           id: 'DOC-X',
           type: 'adr',
           dateCreated: '2025-01-01',
           dateModified: '2026-06-01T00:00:00',
-          _fileMtime: '2026-01-01T00:00:00',
           status: 'accepted',
         }),
         criarDoc({
           id: 'DOC-Y',
           type: 'adr',
-          dateCreated: '2025-01-01',
+          dateCreated: '2026-01-01',
           dateModified: '2026-05-01T00:00:00',
-          _fileMtime: '2026-12-01T00:00:00',
           status: 'accepted',
         }),
       ]
 
       const resultado = getRecentDocs(docs, 10)
-      // DOC-X dateModified 2026-06 > DOC-Y dateModified 2026-05
-      // _fileMtime e ignorado quando dateModified existe
       expect(resultado[0].id).toBe('DOC-X')
       expect(resultado[1].id).toBe('DOC-Y')
     })
 
-    it('_fileMtime e usado como fallback quando dateModified nao existe', () => {
+    it('dateCreated usado quando dateModified nao existe', () => {
       const docs = [
         criarDoc({
-          id: 'DOC-NO-MOD',
+          id: 'DOC-NEWER',
           type: 'task',
-          dateCreated: '2025-01-01',
-          _fileMtime: '2026-03-08T10:00:00',
+          dateCreated: '2026-03-08',
           status: 'done',
         }),
         criarDoc({
-          id: 'DOC-OLD-MTIME',
+          id: 'DOC-OLDER',
           type: 'task',
           dateCreated: '2025-01-01',
-          _fileMtime: '2026-01-01T00:00:00',
           status: 'done',
         }),
       ]
 
       const resultado = getRecentDocs(docs, 10)
-      expect(resultado[0].id).toBe('DOC-NO-MOD')
-      expect(resultado[1].id).toBe('DOC-OLD-MTIME')
+      expect(resultado[0].id).toBe('DOC-NEWER')
+      expect(resultado[1].id).toBe('DOC-OLDER')
     })
 
-    it('dateCreated e ultimo recurso quando nao ha dateModified nem _fileMtime', () => {
-      const docs = [
-        criarDoc({
-          id: 'DOC-ONLY-CREATED-OLD',
-          type: 'task',
-          dateCreated: '2025-01-01',
-          status: 'done',
-        }),
-        criarDoc({
-          id: 'DOC-ONLY-CREATED-NEW',
-          type: 'task',
-          dateCreated: '2026-06-01',
-          status: 'done',
-        }),
-      ]
-
-      const resultado = getRecentDocs(docs, 10)
-      expect(resultado[0].id).toBe('DOC-ONLY-CREATED-NEW')
-      expect(resultado[1].id).toBe('DOC-ONLY-CREATED-OLD')
-    })
-
-    it('doc com dateModified recente aparece antes de doc com apenas _fileMtime recente', () => {
+    it('doc editado hoje sobe para primeiro nos recentes', () => {
       const docs = [
         criarDoc({
           id: 'EDITED-TODAY',
@@ -317,10 +285,9 @@ describe('getRecentDocs - Documentos Recentes', () => {
           status: 'accepted',
         }),
         criarDoc({
-          id: 'SAVED-YESTERDAY',
+          id: 'CREATED-YESTERDAY',
           type: 'adr',
-          dateCreated: '2025-01-01',
-          _fileMtime: '2026-03-07T15:00:00',
+          dateCreated: '2026-03-07',
           status: 'accepted',
         }),
         criarDoc({
@@ -333,7 +300,7 @@ describe('getRecentDocs - Documentos Recentes', () => {
 
       const resultado = getRecentDocs(docs, 10)
       expect(resultado[0].id).toBe('EDITED-TODAY')
-      expect(resultado[1].id).toBe('SAVED-YESTERDAY')
+      expect(resultado[1].id).toBe('CREATED-YESTERDAY')
       expect(resultado[2].id).toBe('ANCIENT')
     })
 
@@ -343,15 +310,13 @@ describe('getRecentDocs - Documentos Recentes', () => {
           id: 'ADR-UPDATED',
           type: 'adr',
           dateCreated: '2025-06-01',
-          dateModified: '2026-03-08T15:30:00', // hook atualizou agora
-          _fileMtime: '2026-03-08T15:30:01',   // filesystem mtime ~igual
+          dateModified: '2026-03-08T15:30:00',
           status: 'accepted',
         }),
         criarDoc({
-          id: 'ADR-RECENT-FILE',
+          id: 'ADR-RECENT-CREATED',
           type: 'adr',
           dateCreated: '2026-03-07',
-          _fileMtime: '2026-03-07T10:00:00',
           status: 'accepted',
         }),
         criarDoc({
@@ -364,10 +329,21 @@ describe('getRecentDocs - Documentos Recentes', () => {
       ]
 
       const resultado = getRecentDocs(docs, 10)
-      // ADR-UPDATED aparece primeiro (dateModified mais recente)
       expect(resultado[0].id).toBe('ADR-UPDATED')
-      expect(resultado[1].id).toBe('ADR-RECENT-FILE')
+      expect(resultado[1].id).toBe('ADR-RECENT-CREATED')
       expect(resultado[2].id).toBe('ADR-OLD')
+    })
+
+    it('mistura de docs com e sem dateModified ordena corretamente', () => {
+      const docs = [
+        criarDoc({ id: 'A', type: 'task', dateCreated: '2025-01-01', dateModified: '2026-06-01T00:00:00', status: 'done' }),
+        criarDoc({ id: 'B', type: 'task', dateCreated: '2026-05-01', status: 'done' }),
+        criarDoc({ id: 'C', type: 'task', dateCreated: '2025-01-01', dateModified: '2026-04-01T00:00:00', status: 'done' }),
+        criarDoc({ id: 'D', type: 'task', dateCreated: '2026-03-01', status: 'done' }),
+      ]
+
+      const resultado = getRecentDocs(docs, 10)
+      expect(resultado.map(d => d.id)).toEqual(['A', 'B', 'C', 'D'])
     })
   })
 

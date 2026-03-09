@@ -352,7 +352,6 @@ export declare interface DocsIndexEntry {
     scope: string;
     dateCreated: string;
     dateModified?: string;
-    _fileMtime?: string;
     tagIds: string[];
     summary: string;
     path: string;

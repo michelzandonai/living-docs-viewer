@@ -9,7 +9,6 @@ interface DocsIndexEntry {
   scope: string
   dateCreated: string
   dateModified?: string
-  _fileMtime?: string
   tagIds: string[]
   summary: string
   path: string
@@ -100,14 +99,6 @@ export async function scanWorkspaceForDocs(docsFolder: vscode.Uri): Promise<Docs
         path: relPath,
       }
 
-      // Get file stat for mtime
-      try {
-        const stat = await vscode.workspace.fs.stat(fileUri)
-        entry._fileMtime = new Date(stat.mtime).toISOString()
-      } catch {
-        // ignore stat errors
-      }
-
       documents.push(entry)
 
       // Track stats
@@ -139,10 +130,10 @@ export async function scanWorkspaceForDocs(docsFolder: vscode.Uri): Promise<Docs
     }
   }
 
-  // Sort by mtime descending (most recent first)
+  // Sort by dateModified descending (most recent first)
   documents.sort((a, b) => {
-    const aTime = a.dateModified || a._fileMtime || a.dateCreated || ''
-    const bTime = b.dateModified || b._fileMtime || b.dateCreated || ''
+    const aTime = a.dateModified || a.dateCreated || ''
+    const bTime = b.dateModified || b.dateCreated || ''
     return bTime.localeCompare(aTime)
   })
 
